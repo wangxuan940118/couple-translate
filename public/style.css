@@ -9,3 +9,5 @@
 
 /* Compact multilingual selectors */
 #setup>select{display:block;width:100%;min-height:50px;background:#242424;color:#f3f0ef;border:1px solid #61565a;border-radius:14px;padding:12px 14px;font:inherit;appearance:auto}#setup>select:focus-visible{outline:2px solid #f3f0ef;outline-offset:2px}
+
+.chatTools{display:flex;align-items:center;gap:12px;margin:8px 0 12px}.chatTools input{flex:1;min-width:0;padding:11px 13px;background:#242424;border:1px solid #49353d}.chatTools span{white-space:nowrap;font-size:12px}
