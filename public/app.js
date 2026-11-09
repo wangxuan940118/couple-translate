@@ -1,4 +1,5 @@
 const $=id=>document.getElementById(id);
+let typingTimer=null,typingClearTimer=null,lastTypingSent=0;
 let lastPreviewAt=0,previewTimer=null,previewText='',previewSequence=0;
 let lang='zh-TW',socket=null,pc=null,stream=null,recognition=null,recognizing=false,joined=false,peerOnline=false,mode=null,calling=false,remoteReady=false,iceQueue=[],currentRoom='',callTimer=null,speechRestartTimer=null,captionSequence=0,photoBlob=null,photoURL=null;
 const show=(id,on)=>$(id).classList.toggle('hidden',!on);
@@ -24,7 +25,12 @@ if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(
 $('languageSelect').onchange=e=>{lang=e.target.value;if($('targetSelect').value===lang)$('targetSelect').value=lang==='en'?'zh-TW':'en'};
 $('targetSelect').onchange=e=>{if(e.target.value===lang)e.target.value=lang==='en'?'zh-TW':'en'};
 $('random').onclick=()=>{const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',nums=new Uint32Array(10);crypto.getRandomValues(nums);$('room').value=Array.from(nums,n=>chars[n%chars.length]).join('')};
-function appendChat(who,text,translation){const log=$('chatlog');log.querySelector('.empty')?.remove();const p=document.createElement('div');p.className='bubble '+(who==='我'?'mine':'theirs');const title=document.createElement('small');title.textContent=who;p.append(title);const line=document.createElement('div');line.textContent=text;p.append(line);if(translation&&translation!==text){const sub=document.createElement('div');sub.className='translation';sub.textContent=translation;p.append(sub)}log.append(p);log.scrollTop=log.scrollHeight;return p}
+function appendChat(who,text,translation){const log=$('chatlog');log.querySelector('.empty')?.remove();const p=document.createElement('div');p.className='bubble '+(who==='我'?'mine':'theirs');const title=document.createElement('small');title.textContent=who;p.append(title);const line=document.createElement('div');line.textContent=text;p.append(line);if(translation&&translation!==text){const sub=document.createElement('div');sub.className='translation';sub.textContent=translation;p.append(sub)}log.append(p);log.scrollTop=log.scrollHeight;filterChat();return p}
+function filterChat(){const query=$('searchMessages').value.trim().toLocaleLowerCase();$('chatlog').querySelectorAll('.bubble').forEach(el=>{el.classList.toggle('hidden',Boolean(query)&&!el.textContent.toLocaleLowerCase().includes(query))})}
+$('searchMessages').oninput=filterChat;
+function sendTyping(){if(!joined)return;const now=Date.now();if(now-lastTypingSent>1600){send({type:'typing'});lastTypingSent=now}}
+$('message').addEventListener('input',sendTyping);
+$('callText').addEventListener('input',sendTyping);
 async function translate(text,from,to){if(from===to)return text;const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);try{const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,from,to}),signal:controller.signal});const d=await r.json();if(!r.ok)throw Error(d.error||'翻譯服務暫時無法使用');if(typeof d.translation!=='string'||!d.translation.trim())throw Error('翻譯結果為空');return d.translation}finally{clearTimeout(timeout)}}
 async function postText(text){text=text.trim();if(!text||!joined)return;const sourceLang=lang,targetLang=other();const bubble=appendChat('我',text);if(calling)$('callCaption').textContent=text;send({type:'caption',text,lang:sourceLang});const sub=document.createElement('div');sub.className='translation';sub.textContent='翻譯中…';bubble.append(sub);try{const translated=await translate(text,sourceLang,targetLang);sub.textContent=translated===text?'':translated}catch(e){sub.textContent='翻譯暫時無法使用（原文已送出）'}}
 function speakTranslated(text){if(!$('readAloud').checked||!('speechSynthesis'in window))return;try{speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(text);utterance.lang=lang==='en'?'en-US':lang==='sr'?'sr-RS':lang;utterance.rate=.92;speechSynthesis.speak(utterance)}catch(e){console.warn('Speech playback unavailable',e)}}
@@ -39,8 +45,9 @@ async function handle(m){switch(m.type){
 case 'joined':joined=true;peerOnline=m.count===2;show('setup',false);show('home',true);status(peerOnline?'♡ 你們都在線上':'等待寶貝加入…');break;
 case 'peer-joined':peerOnline=true;status('♡ 你們都在線上');break;
 case 'peer-left':peerOnline=false;status('寶貝已離開房間');endCall(false);show('incomingCall',false);break;
+case 'typing':$('typingStatus').textContent='對方正在輸入…';clearTimeout(typingClearTimer);typingClearTimer=setTimeout(()=>$('typingStatus').textContent='',2500);break;
 case 'caption-preview':if(calling&&typeof m.text==='string')$('callCaption').textContent=m.text+' …';break;
-case 'caption':if(typeof m.text==='string'&&languages.includes(m.lang))receiveText(m);break;
+case 'caption':$('typingStatus').textContent='';if(typeof m.text==='string'&&languages.includes(m.lang))receiveText(m);break;
 case 'call-invite':if(calling||mode){send({type:'call-decline'});break}mode=m.mode==='video'?'video':'audio';$('incomingMode').textContent=mode==='video'?'視訊通話':'語音通話';$('incomingTitle').textContent='寶貝正在呼叫你…';show('incomingCall',true);notifyIncoming('卡安 ❤️','正在呼叫你 · '+(mode==='video'?'視訊通話':'語音通話'));break;
 case 'call-accept':if(calling){clearTimeout(callTimer);callStatus('正在連線…');await makeOffer()}break;
 case 'call-decline':if(calling){alert('對方暫時無法接聽');endCall(false)}break;
