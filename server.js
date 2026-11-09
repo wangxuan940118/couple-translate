@@ -33,7 +33,10 @@ wss.on('connection',ws=>{
    let peers=rooms.get(room)||new Set();if(peers.size>=2)return send(ws,{type:'error',message:'Room is full'});
    ws.room=room;peers.add(ws);rooms.set(room,peers);send(ws,{type:'joined',count:peers.size});for(const peer of peers)if(peer!==ws)send(peer,{type:'peer-joined'});return;
   }
-  if(!ws.room)return;const peers=rooms.get(ws.room)||new Set();if(!['offer','answer','ice','caption'].includes(m.type))return;
+  if(!ws.room)return;const peers=rooms.get(ws.room)||new Set();if(!['offer','answer','ice','caption','call-invite','call-accept','call-decline','call-end'].includes(m.type))return;
+  if(m.type==='call-invite'&&!['audio','video'].includes(m.mode))return;
+  if(['offer','answer'].includes(m.type)&&(!m.sdp||typeof m.sdp!=='object'))return;
+  if(m.type==='ice'&&(!m.candidate||typeof m.candidate!=='object'))return;
   if(m.type==='caption'&&(typeof m.text!=='string'||m.text.length>1000||!['en','zh-TW'].includes(m.lang)))return;
   for(const peer of peers)if(peer!==ws)send(peer,m);
  });
