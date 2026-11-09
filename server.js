@@ -7,7 +7,7 @@ const rooms=new Map();
 const hits=new Map();
 function limited(req){const ip=String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'').split(',')[0].trim();const now=Date.now();const arr=(hits.get(ip)||[]).filter(t=>now-t<60000);arr.push(now);hits.set(ip,arr);return arr.length>30}
 setInterval(()=>{const now=Date.now();for(const[k,v]of hits)if(!v.some(t=>now-t<60000))hits.delete(k)},60000).unref();
-const mime={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8'};
+const mime={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.webmanifest':'application/manifest+json; charset=utf-8','.svg':'image/svg+xml'};
 const server=http.createServer(async(req,res)=>{
  const u=new URL(req.url,'http://localhost');
  if(u.pathname==='/api/translate'){
