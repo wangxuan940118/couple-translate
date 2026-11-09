@@ -10,6 +10,7 @@ function json(res,status,data){res.writeHead(status,{'Content-Type':'application
 async function readJson(req,max=8000){let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>max)throw Error('Request too large')}return JSON.parse(raw)}
 async function pushToRoom(room,senderDevice,payload){if(!vapidReady)return;const subscriptions=pushSubscriptions.get(room);if(!subscriptions)return;for(const [device,sub] of subscriptions){if(device===senderDevice)continue;try{await webpush.sendNotification(sub,JSON.stringify(payload),{TTL:3600})}catch(e){if([404,410].includes(e.statusCode))subscriptions.delete(device);else console.warn('Push delivery failed',e.statusCode||e.message)}}}
 
+const LANGUAGES={"zh-TW":"Traditional Chinese (Taiwan)","en":"English","sv":"Swedish","sr":"Serbian (Latin script)","fr":"French","es":"Spanish","ja":"Japanese","ko":"Korean","de":"German","tr":"Turkish"};
 const PORT=process.env.PORT||3000;
 const rooms=new Map();
 const hits=new Map();
@@ -30,10 +31,10 @@ const server=http.createServer(async(req,res)=>{
   if(req.method!=='POST'){res.writeHead(405);return res.end();}
   if(limited(req)){res.writeHead(429,{'Content-Type':'application/json'});return res.end(JSON.stringify({error:'Too many requests'}));}
   let body='';req.on('data',c=>{body+=c;if(body.length>5000)req.destroy()});req.on('end',async()=>{
-   try{const {text,from,to}=JSON.parse(body);if(typeof text!=='string'||text.length>500||!['en','zh-TW'].includes(from)||!['en','zh-TW'].includes(to))throw Error('Invalid translation request');
+   try{const {text,from,to}=JSON.parse(body);if(typeof text!=='string'||text.length>500||!LANGUAGES[from]||!LANGUAGES[to])throw Error('Invalid translation request');
     if(!process.env.OPENAI_API_KEY?.trim())throw Error('OPENAI_API_KEY 尚未設定，請檢查 Render Environment');
-    const source=from==='zh-TW'?'Traditional Chinese (Taiwan)':'English';
-    const target=to==='zh-TW'?'Traditional Chinese (Taiwan)':'English';
+    const source=LANGUAGES[from];
+    const target=LANGUAGES[to];
     const r=await fetch('https://api.openai.com/v1/chat/completions',{
      method:'POST',headers:{'Authorization':'Bearer '+process.env.OPENAI_API_KEY.trim(),'Content-Type':'application/json'},
      body:JSON.stringify({model:'gpt-4.1-mini',temperature:0,max_tokens:500,messages:[
@@ -65,7 +66,7 @@ wss.on('connection',ws=>{
   if(m.type==='call-invite'&&!['audio','video'].includes(m.mode))return;
   if(['offer','answer'].includes(m.type)&&(!m.sdp||typeof m.sdp!=='object'))return;
   if(m.type==='ice'&&(!m.candidate||typeof m.candidate!=='object'))return;
-  if(m.type==='caption'&&(typeof m.text!=='string'||m.text.length>1000||!['en','zh-TW'].includes(m.lang)))return;
+  if(m.type==='caption'&&(typeof m.text!=='string'||m.text.length>1000||!LANGUAGES[m.lang]))return;
   if(m.type==='caption-preview'&&(typeof m.text!=='string'||m.text.length>300))return;
   for(const peer of peers)if(peer!==ws)send(peer,m);
   if(m.type==='caption')pushToRoom(ws.room,ws.device,{title:'Our Little World ❤️',body:typeof m.translated==='string'&&m.translated.trim()?m.translated.slice(0,200):m.text.slice(0,200),url:'/'}).catch(console.warn);
