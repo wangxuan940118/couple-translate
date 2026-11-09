@@ -6,6 +6,12 @@ const status=t=>$('status').textContent=t;
 const callStatus=t=>$('callStatus').textContent=t;
 const send=m=>{if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify(m))};
 const safeError=e=>e?.message||String(e);
+// Notification previews are opt-in. This is foreground notification support, not remote push.
+const notifyStatus=message=>{const el=$('notificationStatus');if(el)el.textContent=message};
+function notifyIncoming(title,body){if(!('Notification'in window)||Notification.permission!=='granted'||!document.hidden)return;try{const n=new Notification(title,{body,tag:'our-little-world-message'});n.onclick=()=>{window.focus();n.close()}}catch(e){console.warn('Notification unavailable',e)}}
+$('enableNotifications').onclick=async()=>{if(!('Notification'in window)){notifyStatus('此瀏覽器不支援通知');return}try{const permission=await Notification.requestPermission();notifyStatus(permission==='granted'?'已允許通知。網站執行中可收到訊息提醒；關閉網站後的推播仍在開發中。':permission==='denied'?'通知已被封鎖，請到裝置設定允許通知。':'尚未允許通知。')}catch(e){notifyStatus('無法啟用通知：'+safeError(e)}};
+if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(e=>console.warn('Service worker registration failed',e));
+
 $('zh').onclick=()=>choose('zh-TW');$('en').onclick=()=>choose('en');
 function choose(l){lang=l;$('zh').classList.toggle('selected',l==='zh-TW');$('en').classList.toggle('selected',l==='en')}
 $('random').onclick=()=>{const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',nums=new Uint32Array(10);crypto.getRandomValues(nums);$('room').value=Array.from(nums,n=>chars[n%chars.length]).join('')};
@@ -13,7 +19,7 @@ function appendChat(who,text,translation){const log=$('chatlog');log.querySelect
 async function translate(text,from,to){if(from===to)return text;const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),15000);try{const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,from,to}),signal:controller.signal});const d=await r.json();if(!r.ok)throw Error(d.error||'翻譯服務暫時無法使用');if(typeof d.translation!=='string'||!d.translation.trim())throw Error('翻譯結果為空');return d.translation}finally{clearTimeout(timeout)}}
 async function postText(text){text=text.trim();if(!text||!joined)return;const bubble=appendChat('我',text);if(calling)$('callCaption').textContent=text;let translated='';try{translated=await translate(text,lang,other());if(translated!==text){const sub=document.createElement('div');sub.className='translation';sub.textContent=translated;bubble.append(sub)}}catch{const sub=document.createElement('div');sub.className='translation';sub.textContent='翻譯暫時無法使用（已送出原文）';bubble.append(sub)}send({type:'caption',text,lang,translated,to:other()})}
 function speakTranslated(text){if(!$('readAloud').checked||!('speechSynthesis'in window))return;try{speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(text);utterance.lang=lang==='zh-TW'?'zh-TW':'en-US';utterance.rate=.92;speechSynthesis.speak(utterance)}catch(e){console.warn('Speech playback unavailable',e)}}
-async function receiveText(m){const seq=++captionSequence;const bubble=appendChat('寶貝',m.text);if(calling)$('callCaption').textContent=m.text;try{const t=(typeof m.translated==='string'&&m.translated.trim()&&m.to===lang)?m.translated:await translate(m.text,m.lang,lang);if(t!==m.text){const sub=document.createElement('div');sub.className='translation';sub.textContent=t;bubble.append(sub)}if(calling&&seq===captionSequence)$('callCaption').textContent=t;if(calling)speakTranslated(t)}catch{const sub=document.createElement('div');sub.className='translation';sub.textContent='翻譯暫時無法使用';bubble.append(sub)}}
+async function receiveText(m){const seq=++captionSequence;const bubble=appendChat('寶貝',m.text);notifyIncoming('卡安 ❤️',m.to===lang&&typeof m.translated==='string'&&m.translated.trim()?m.translated:m.text);if(calling)$('callCaption').textContent=m.text;try{const t=(typeof m.translated==='string'&&m.translated.trim()&&m.to===lang)?m.translated:await translate(m.text,m.lang,lang);if(t!==m.text){const sub=document.createElement('div');sub.className='translation';sub.textContent=t;bubble.append(sub)}if(calling&&seq===captionSequence)$('callCaption').textContent=t;if(calling)speakTranslated(t)}catch{const sub=document.createElement('div');sub.className='translation';sub.textContent='翻譯暫時無法使用';bubble.append(sub)}}
 $('testTranslate').onclick=async()=>{const button=$('testTranslate');const phrase=$('testPhrase').value.trim();if(!phrase)return;$('testResult').textContent='正在翻譯…';button.disabled=true;try{const result=await translate(phrase,lang,other());$('testResult').textContent=(other()==='en'?'英文：':'中文：')+result}catch(e){$('testResult').textContent='測試失敗：'+(e.name==='AbortError'?'翻譯逾時':safeError(e))}finally{button.disabled=false}};
 $('manual').onsubmit=e=>{e.preventDefault();postText($('message').value);$('message').value=''};
 $('callSend').onclick=()=>{postText($('callText').value);$('callText').value=''};
@@ -25,7 +31,7 @@ case 'joined':joined=true;peerOnline=m.count===2;show('setup',false);show('home'
 case 'peer-joined':peerOnline=true;status('♡ 你們都在線上');break;
 case 'peer-left':peerOnline=false;status('寶貝已離開房間');endCall(false);show('incomingCall',false);break;
 case 'caption':if(typeof m.text==='string'&&['en','zh-TW'].includes(m.lang))receiveText(m);break;
-case 'call-invite':if(calling||mode){send({type:'call-decline'});break}mode=m.mode==='video'?'video':'audio';$('incomingMode').textContent=mode==='video'?'視訊通話':'語音通話';$('incomingTitle').textContent='寶貝正在呼叫你…';show('incomingCall',true);break;
+case 'call-invite':if(calling||mode){send({type:'call-decline'});break}mode=m.mode==='video'?'video':'audio';$('incomingMode').textContent=mode==='video'?'視訊通話':'語音通話';$('incomingTitle').textContent='寶貝正在呼叫你…';show('incomingCall',true);notifyIncoming('卡安 ❤️','正在呼叫你 · '+(mode==='video'?'視訊通話':'語音通話'));break;
 case 'call-accept':if(calling){clearTimeout(callTimer);callStatus('正在連線…');await makeOffer()}break;
 case 'call-decline':if(calling){alert('對方暫時無法接聽');endCall(false)}break;
 case 'call-end':endCall(false);break;
