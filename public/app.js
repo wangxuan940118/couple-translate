@@ -6,10 +6,17 @@ const status=t=>$('status').textContent=t;
 const callStatus=t=>$('callStatus').textContent=t;
 const send=m=>{if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify(m))};
 const safeError=e=>e?.message||String(e);
-// Notification previews are opt-in. This is foreground notification support, not remote push.
+// Push requires a Home Screen installation on iOS and server VAPID configuration.
+const deviceId=(()=>{let id=localStorage.getItem('olw-device');if(!id){id=crypto.randomUUID();localStorage.setItem('olw-device',id)}return id})();
 const notifyStatus=message=>{const el=$('notificationStatus');if(el)el.textContent=message};
 function notifyIncoming(title,body){if(!('Notification'in window)||Notification.permission!=='granted'||!document.hidden)return;try{const n=new Notification(title,{body,tag:'our-little-world-message'});n.onclick=()=>{window.focus();n.close()}}catch(e){console.warn('Notification unavailable',e)}}
-$('enableNotifications').onclick=async()=>{if(!('Notification'in window)){notifyStatus('此瀏覽器不支援通知');return}try{const permission=await Notification.requestPermission();notifyStatus(permission==='granted'?'已允許通知。網站執行中可收到訊息提醒；關閉網站後的推播仍在開發中。':permission==='denied'?'通知已被封鎖，請到裝置設定允許通知。':'尚未允許通知。')}catch(e){notifyStatus('無法啟用通知：'+safeError(e)}};
+function urlBase64ToUint8Array(base64){const padded=base64+'='.repeat((4-base64.length%4)%4);const raw=atob(padded.replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(raw,c=>c.charCodeAt(0))}
+async function subscribePush(){if(!joined||!currentRoom){notifyStatus('請先進入私人房間，再開啟通知。');return}if(!('Notification'in window)||!('serviceWorker'in navigator)||!('PushManager'in window)){notifyStatus('此裝置或瀏覽器不支援推播。iPhone 請先用 Safari 加入主畫面，再從桌面開啟。');return}
+ try{const permission=await Notification.requestPermission();if(permission!=='granted'){notifyStatus('尚未允許通知。');return}const config=await(await fetch('/api/push/key')).json();if(!config.enabled){notifyStatus('通知介面已準備好，但伺服器推播金鑰尚未設定。');return}
+ const registration=await navigator.serviceWorker.ready;let subscription=await registration.pushManager.getSubscription();if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(config.publicKey)});
+ const result=await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({room:currentRoom,device:deviceId,subscription:subscription.toJSON()})});if(!result.ok)throw Error('無法儲存通知訂閱');notifyStatus('通知已啟用。提醒：伺服器重啟後需要重新訂閱，正式持久化仍在開發中。');
+ }catch(e){notifyStatus('推播設定失敗：'+safeError(e))}}
+$('enableNotifications').onclick=subscribePush;
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(e=>console.warn('Service worker registration failed',e));
 
 $('zh').onclick=()=>choose('zh-TW');$('en').onclick=()=>choose('en');
@@ -25,7 +32,7 @@ $('manual').onsubmit=e=>{e.preventDefault();postText($('message').value);$('mess
 $('callSend').onclick=()=>{postText($('callText').value);$('callText').value=''};
 $('callText').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('callSend').click()}};
 $('join').onclick=()=>{const room=$('room').value.trim().toUpperCase();if(!/^[A-Z0-9]{6,20}$/.test(room)){ $('setupNotice').textContent='請輸入 6–20 位英數字房間代碼';return}currentRoom=room;$('setupNotice').textContent='';connect(room)};
-function connect(room){socket?.close();joined=false;peerOnline=false;socket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);socket.onopen=()=>send({type:'join',room});socket.onmessage=e=>{try{handle(JSON.parse(e.data))}catch(err){console.error(err)}};socket.onerror=()=>status('網路連線失敗');socket.onclose=()=>{if(joined){joined=false;peerOnline=false;status('連線已中斷，請重新進入');endCall(false)}}}
+function connect(room){socket?.close();joined=false;peerOnline=false;socket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);socket.onopen=()=>send({type:'join',room,device:deviceId});socket.onmessage=e=>{try{handle(JSON.parse(e.data))}catch(err){console.error(err)}};socket.onerror=()=>status('網路連線失敗');socket.onclose=()=>{if(joined){joined=false;peerOnline=false;status('連線已中斷，請重新進入');endCall(false)}}}
 async function handle(m){switch(m.type){
 case 'joined':joined=true;peerOnline=m.count===2;show('setup',false);show('home',true);status(peerOnline?'♡ 你們都在線上':'等待寶貝加入…');break;
 case 'peer-joined':peerOnline=true;status('♡ 你們都在線上');break;
