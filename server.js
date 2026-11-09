@@ -28,6 +28,7 @@ function send(ws,data){if(ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(
 wss.on('connection',ws=>{
  ws.on('message',raw=>{let m;try{m=JSON.parse(raw)}catch{return}
   if(m.type==='join'){
+   if(ws.room)return send(ws,{type:'error',message:'Already joined a room'});
    const room=String(m.room||'').trim().toUpperCase();if(!/^[A-Z0-9]{6,20}$/.test(room))return send(ws,{type:'error',message:'Invalid room code'});
    let peers=rooms.get(room)||new Set();if(peers.size>=2)return send(ws,{type:'error',message:'Room is full'});
    ws.room=room;peers.add(ws);rooms.set(room,peers);send(ws,{type:'joined',count:peers.size});for(const peer of peers)if(peer!==ws)send(peer,{type:'peer-joined'});return;
