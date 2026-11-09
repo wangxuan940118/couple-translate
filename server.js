@@ -2,6 +2,14 @@ const http=require('http');
 const fs=require('fs');
 const path=require('path');
 const WebSocket=require('ws');
+const webpush=require('web-push');
+const pushSubscriptions=new Map(); // Temporary until durable storage is configured.
+const vapidReady=Boolean(process.env.VAPID_PUBLIC_KEY&&process.env.VAPID_PRIVATE_KEY);
+if(vapidReady)webpush.setVapidDetails('mailto:admin@example.com',process.env.VAPID_PUBLIC_KEY,process.env.VAPID_PRIVATE_KEY);
+function json(res,status,data){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data))}
+async function readJson(req,max=8000){let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>max)throw Error('Request too large')}return JSON.parse(raw)}
+async function pushToRoom(room,senderDevice,payload){if(!vapidReady)return;const subscriptions=pushSubscriptions.get(room);if(!subscriptions)return;for(const [device,sub] of subscriptions){if(device===senderDevice)continue;try{await webpush.sendNotification(sub,JSON.stringify(payload),{TTL:3600})}catch(e){if([404,410].includes(e.statusCode))subscriptions.delete(device);else console.warn('Push delivery failed',e.statusCode||e.message)}}}
+
 const PORT=process.env.PORT||3000;
 const rooms=new Map();
 const hits=new Map();
@@ -10,6 +18,14 @@ setInterval(()=>{const now=Date.now();for(const[k,v]of hits)if(!v.some(t=>now-t<
 const mime={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.webmanifest':'application/manifest+json; charset=utf-8','.svg':'image/svg+xml'};
 const server=http.createServer(async(req,res)=>{
  const u=new URL(req.url,'http://localhost');
+ if(u.pathname==='/api/push/key'){return json(res,200,{enabled:vapidReady,publicKey:vapidReady?process.env.VAPID_PUBLIC_KEY:null,persistent:false})}
+ if(u.pathname==='/api/push/subscribe'&&req.method==='POST'){
+  if(limited(req))return json(res,429,{error:'Too many requests'});
+  try{const {room,device,subscription}=await readJson(req);if(!vapidReady)return json(res,503,{error:'背景推播尚未設定伺服器金鑰'});
+   if(!/^[A-Z0-9]{6,20}$/.test(room)||!/^[a-f0-9-]{20,64}$/.test(device)||!subscription?.endpoint?.startsWith('https://')||!subscription.keys?.p256dh||!subscription.keys?.auth)return json(res,400,{error:'Invalid subscription'});
+   const peers=pushSubscriptions.get(room)||new Map();peers.set(device,subscription);pushSubscriptions.set(room,peers);return json(res,200,{ok:true});
+  }catch(e){return json(res,400,{error:'Invalid subscription request'})}
+ }
  if(u.pathname==='/api/translate'){
   if(req.method!=='POST'){res.writeHead(405);return res.end();}
   if(limited(req)){res.writeHead(429,{'Content-Type':'application/json'});return res.end(JSON.stringify({error:'Too many requests'}));}
@@ -43,7 +59,7 @@ wss.on('connection',ws=>{
    if(ws.room)return send(ws,{type:'error',message:'Already joined a room'});
    const room=String(m.room||'').trim().toUpperCase();if(!/^[A-Z0-9]{6,20}$/.test(room))return send(ws,{type:'error',message:'Invalid room code'});
    let peers=rooms.get(room)||new Set();if(peers.size>=2)return send(ws,{type:'error',message:'Room is full'});
-   ws.room=room;peers.add(ws);rooms.set(room,peers);send(ws,{type:'joined',count:peers.size});for(const peer of peers)if(peer!==ws)send(peer,{type:'peer-joined'});return;
+   ws.room=room;ws.device=typeof m.device==='string'&&/^[a-f0-9-]{20,64}$/.test(m.device)?m.device:null;peers.add(ws);rooms.set(room,peers);send(ws,{type:'joined',count:peers.size});for(const peer of peers)if(peer!==ws)send(peer,{type:'peer-joined'});return;
   }
   if(!ws.room)return;const peers=rooms.get(ws.room)||new Set();if(!['offer','answer','ice','caption','call-invite','call-accept','call-decline','call-end'].includes(m.type))return;
   if(m.type==='call-invite'&&!['audio','video'].includes(m.mode))return;
@@ -51,6 +67,8 @@ wss.on('connection',ws=>{
   if(m.type==='ice'&&(!m.candidate||typeof m.candidate!=='object'))return;
   if(m.type==='caption'&&(typeof m.text!=='string'||m.text.length>1000||!['en','zh-TW'].includes(m.lang)))return;
   for(const peer of peers)if(peer!==ws)send(peer,m);
+  if(m.type==='caption')pushToRoom(ws.room,ws.device,{title:'Our Little World ❤️',body:typeof m.translated==='string'&&m.translated.trim()?m.translated.slice(0,200):m.text.slice(0,200),url:'/'}).catch(console.warn);
+  if(m.type==='call-invite')pushToRoom(ws.room,ws.device,{title:'Our Little World ❤️',body:m.mode==='video'?'寶貝正在打視訊給你':'寶貝正在打電話給你',url:'/'}).catch(console.warn);
  });
  ws.on('close',()=>{if(!ws.room)return;const peers=rooms.get(ws.room);if(!peers)return;peers.delete(ws);for(const peer of peers)send(peer,{type:'peer-left'});if(!peers.size)rooms.delete(ws.room)});
 });
