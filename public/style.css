@@ -35,3 +35,108 @@
 
 /* Light scrapbook theme to complement the user's white illustrated cover. */
 body{background:#f8f7f5;color:#242424}.app{color:#242424}.panel{background:#fff;border-color:#dedbd8;color:#242424}input,select,textarea{background:#eeecea;color:#222;border-color:#d4d0cc}.coverPage{max-width:520px;gap:16px}.coverArt{background:#fff;border:1px solid #e2dedb;box-shadow:0 14px 36px #24242412;min-height:0;padding:16px 16px 24px;border-radius:18px}.coupleCoverPhoto{display:block;width:100%;height:auto;max-height:min(64svh,680px);object-fit:contain;border-radius:10px}.coupleCoverPhoto[hidden]{display:none}.coverArt:has(.coupleCoverPhoto:not([hidden])) .coverHearts{display:none}.coverHearts{color:#b55d73}.coverArt h1{font-size:clamp(28px,7vw,40px);margin:18px 0 8px;color:#222}.coverArt p{color:#696662}.coverArtNote{color:#88817e;margin-top:12px}.coverNext{background:#242424;color:#fff;border:1px solid #242424}.heartChoice.whiteHeart{background:#ece9e6}.heartChoice.blackHeart{background:#e3dfdc}
+
+.callScreen .captionFeed{top:calc(100px + env(safe-area-inset-top));bottom:calc(292px + env(safe-area-inset-bottom));max-height:none;overflow-y:auto;display:flex;flex-direction:column;align-items:stretch;gap:12px;padding:14px;text-align:left;background:#0b1934e8;border:1px solid #ffffff28;overscroll-behavior:contain;z-index:3}.captionEmpty{text-align:center;margin:auto;color:#c8d5ef;font-size:13px;line-height:1.7}.captionBubble{max-width:91%;align-self:flex-start;padding:12px 15px;background:#2c3c61;border-radius:19px;overflow-wrap:anywhere;white-space:pre-wrap;text-shadow:none;box-shadow:0 3px 10px #0003}.captionBubble.captionMine{align-self:flex-end;background:#182b52}.captionBubble small{display:block;font-size:12px;color:#b7c9ed;margin-bottom:7px}.captionOriginal{font-size:17px;line-height:1.45}.captionTranslation{font-size:16px;line-height:1.45;border-top:1px solid #ffffff45;margin-top:8px;padding-top:8px}.callScreen .translationOptions{z-index:4}@media(max-height:700px){.callScreen .captionFeed{top:calc(70px + env(safe-area-inset-top));bottom:calc(275px + env(safe-area-inset-bottom))}}@media(max-width:500px){.callScreen .captionFeed{left:12px;right:12px}}
+
+/* Our Little Time — both local clocks, including Swedish DST. */
+.coupleClocks{margin:12px 0 18px;padding:13px;border:1px solid #e4e0dd;border-radius:18px;background:#fff}.clockHeading{text-align:center;font-size:11px;letter-spacing:.14em;color:#8a7f79;margin-bottom:12px}.clockGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.clockCard{text-align:center;border-radius:14px;background:#f0eeec;padding:12px 6px;color:#292625}.clockName{font-size:12px;margin-bottom:6px}.clockTime{display:block;font-size:clamp(23px,6vw,32px);font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:.01em}.clockDate{font-size:11px;color:#77716c;margin-top:5px}
+
+.deliveryStatus{display:block;margin-top:7px;padding:3px 0;border:0;background:transparent;color:#777;font-size:11px;text-align:left;cursor:default}.deliveryStatus:not(:disabled){color:#b03a3a;text-decoration:underline;cursor:pointer}
+
+/* 2026 redesign: second (private entry) and third (chat) pages only. */
+#setup,#home{--ink:#292623;--sub:#827b75;--line:#e9e4df;--paper:#fffdfa;--soft:#f6f2ed;color:var(--ink);border:1px solid #eee8e1;background:var(--paper);box-shadow:0 22px 65px #655b4c13;border-radius:30px}
+#setup{max-width:510px;padding:clamp(22px,5vw,42px);margin:12px auto 40px}
+#setup .loveIntro{padding:12px 4px 22px;border-bottom:1px solid var(--line);margin-bottom:24px}
+#setup .loveHearts{color:#8e8078;font-size:20px;letter-spacing:13px}
+#setup .loveIntro h2{color:var(--ink);font:normal clamp(28px,7vw,38px)/1.2 Georgia,serif;letter-spacing:-.035em;margin:16px 0 12px}
+#setup .loveIntro p{color:var(--sub);font-size:13px;line-height:1.9;margin:0}
+#setup .profileLabel{color:var(--sub);font-size:12px;letter-spacing:.08em}
+#setup .heartChoices{gap:18px;margin:15px auto 22px}
+#setup .heartChoice{width:88px;height:88px;border-radius:25px;font-size:44px;box-shadow:none}
+#setup .heartChoice.whiteHeart{background:#f7f5f2;color:#fff;text-shadow:0 1px 3px #777,0 0 1px #444;border:1px solid #d9d3ce}
+#setup .heartChoice.blackHeart{background:#f0eeeb;color:#292623;border:1px solid #d9d3ce}
+#setup .heartChoice.active{transform:translateY(-2px);border:2px solid #82766c;box-shadow:0 0 0 4px #a69b901c}
+#setup label{color:#514c48;font-size:12px;letter-spacing:.035em;margin:19px 0 9px}
+#setup input,#setup select,#setup>select{width:100%;background:#f7f5f2;color:#302c28;border:1px solid #e3ddd7;border-radius:13px;min-height:50px;padding:13px 14px;box-shadow:none}
+#setup input:focus,#setup select:focus{outline:2px solid #b3a79d;outline-offset:1px}
+#setup .roomrow{align-items:stretch;gap:9px}
+#setup .roomrow input{width:auto;flex:1}
+#setup .roomrow button,#setup .translationTester button{background:#ede8e2;border:1px solid #ded6ce;color:#423b36;font-size:12px;padding:10px 13px;border-radius:12px;white-space:nowrap}
+#setup .hint{color:#948b83;font-size:11px}
+#setup #join{margin-top:20px;min-height:55px;background:#302b28!important;border-color:#302b28!important;color:#fff!important;font-size:15px;letter-spacing:.06em;border-radius:14px}
+#setup .translationTester{margin-top:28px;padding:18px;background:#f8f6f3;border:1px solid var(--line);border-radius:18px}
+#setup .translationTester label:first-child{margin-top:0}
+#setup .translationTester .composer{margin-top:10px}
+#home{max-width:760px;margin:auto;padding:clamp(16px,4vw,32px);min-height:calc(100svh - 70px)}
+#home .homebar{padding:4px 2px 19px;border-bottom:1px solid var(--line);align-items:center}
+#home .eyebrow{color:#9b8f86;font-size:10px;letter-spacing:.22em}
+#home .homebar h2{font:normal clamp(28px,6vw,38px)/1.15 Georgia,serif;color:var(--ink);margin:8px 0 8px}
+#home .homebar small{color:#8c8179;font-size:12px}
+#home .heart{color:#9b8b81}
+#home button.secondary{background:#f5f1ed;border:1px solid #e8e1db;color:#655b53;border-radius:13px}
+#home .coupleClocks{background:transparent;border:0;padding:0;margin:20px 0 14px}
+#home .clockHeading{font-size:10px;color:#a69a90;letter-spacing:.2em}
+#home .clockGrid{gap:11px}
+#home .clockCard{background:#f6f2ee;border:1px solid #ebe4dd;border-radius:19px;padding:16px 7px}
+#home .clockName{color:#6e635c;font-size:12px}
+#home .clockTime{color:#302b28;font-size:clamp(26px,6vw,34px);font-weight:600;letter-spacing:-.04em}
+#home .clockDate{color:#93877f}
+#home .notificationSettings{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0}
+#home .notificationSettings button{flex-shrink:0;font-size:12px;padding:10px}
+#home .notificationSettings .hint{margin:0;color:#9b9089;font-size:10px}
+#home .callActions{gap:10px;margin:14px 0 18px}
+#home .callAction{background:#f4f0ec;border:1px solid #e9e2dc;color:#443c36;border-radius:17px;padding:14px 10px;font-size:13px}
+#home .callAction span{font-size:21px;margin-bottom:6px}
+#home .chatTools{margin:10px 0 12px}
+#home .chatTools input{background:#f7f5f2;border:1px solid #e9e3dd;color:#3b332e;border-radius:13px;padding:12px}
+#home .chatTools .hint{color:#998d84}
+#home .chatlog{height:clamp(300px,43svh,510px);background:#faf8f5!important;border:1px solid #ece6e0;border-radius:21px;padding:17px 13px;gap:14px}
+#home .chatlog .empty{color:#aaa098;font-size:13px}
+#home .chatlog .bubble{max-width:87%;background:#fff;border:1px solid #e9e2db;color:#39322d;box-shadow:0 3px 10px #30241b07;border-radius:18px 18px 18px 5px;padding:12px 14px;font-size:14px;line-height:1.55}
+#home .chatlog .bubble.mine{background:#eae4de;color:#2f2a27;border-color:#eae4de;border-radius:18px 18px 5px 18px}
+#home .bubble small{color:#8e8077;opacity:1;font-size:11px}
+#home .translation{border-top:1px solid #b7aaa34d;color:#625850;margin-top:9px;padding-top:9px;font-size:13px}
+#home .deliveryStatus{font-size:10px;color:#8b8078}
+#home .composer{gap:9px;margin-top:13px}
+#home .composer input{background:#f7f5f2;border:1px solid #e6dfd8;color:#302b28;border-radius:15px;min-height:51px;padding:13px}
+#home .composer button.primary{background:#302b28!important;color:#fff!important;border-color:#302b28!important;border-radius:14px;padding:12px 18px;font-size:13px}
+#home>p.hint{color:#a69b92;font-size:10px;margin-top:13px}
+@media(max-width:500px){#setup{border-radius:23px;padding:22px 19px}#home{border-radius:22px;padding:17px 13px;min-height:calc(100svh - 40px)}#home .notificationSettings{align-items:flex-start;flex-direction:column}#home .chatlog{padding:13px 10px}#home .chatTools{flex-wrap:wrap}#home .chatTools span{white-space:normal}}
+
+/* Compact chat layout: remove the redundant page header and reclaim vertical space. */
+body:has(#home:not(.hidden)) .app{max-width:820px;padding-top:12px;padding-bottom:14px}
+body:has(#home:not(.hidden)) #siteHeader{display:none!important}
+#home{min-height:0;padding:clamp(12px,2.6vw,20px);border-radius:22px}
+#home .homebar{padding:0 0 10px}
+#home .homebar h2{font-size:clamp(23px,4.5vw,29px);margin:4px 0}
+#home .homebar .eyebrow{font-size:9px;letter-spacing:.14em}
+#home .coupleClocks{margin:10px 0 8px}
+#home .clockHeading{margin-bottom:6px}
+#home .clockCard{padding:8px 6px;border-radius:13px}
+#home .clockTime{font-size:clamp(22px,4vw,27px)}
+#home .clockName{font-size:11px;margin-bottom:2px}
+#home .clockDate{font-size:10px;margin-top:2px}
+#home .notificationSettings{padding:4px 0;gap:7px}
+#home .notificationSettings .hint{font-size:10px;line-height:1.35}
+#home .callActions{margin:8px 0 10px;gap:8px}
+#home .callAction{padding:8px 9px;border-radius:12px}
+#home .callAction span{display:inline;font-size:16px;margin:0 7px 0 0}
+#home .chatTools{margin:6px 0 8px}
+#home .chatTools input{padding:9px 12px}
+#home .chatlog{height:clamp(280px,48svh,540px);padding:12px;gap:10px}
+#home .composer{margin-top:9px}
+#home>p.hint{margin:8px 0 0;line-height:1.4}
+@media(max-width:500px){
+ body:has(#home:not(.hidden)) .app{padding:6px 8px 10px}
+ #home{padding:12px 10px;border-radius:16px}
+ #home .homebar{gap:6px}
+ #home .homebar button{padding:7px 9px;font-size:11px}
+ #home .notificationSettings{flex-direction:row;align-items:center}
+ #home .notificationSettings button{font-size:10px;padding:8px;white-space:nowrap}
+ #home .notificationSettings .hint{font-size:9px}
+ #home .chatlog{height:clamp(260px,46svh,470px)}
+}
+
+/* iOS Safari: visible user gesture when remote media autoplay is blocked. */
+.callScreen .resumeAudio{display:inline-flex;align-items:center;justify-content:center;margin:8px auto 0;padding:10px 16px;border-radius:999px;border:1px solid #fff8;background:#fff;color:#24201e;font-size:13px;font-weight:700;box-shadow:0 3px 12px #0003;cursor:pointer}
+.callScreen .resumeAudio.hidden{display:none!important}

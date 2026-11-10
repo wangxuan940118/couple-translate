@@ -62,11 +62,21 @@ wss.on('connection',ws=>{
    let peers=rooms.get(room)||new Set();if(peers.size>=2)return send(ws,{type:'error',message:'Room is full'});
    ws.room=room;ws.device=typeof m.device==='string'&&/^[a-f0-9-]{20,64}$/.test(m.device)?m.device:null;peers.add(ws);rooms.set(room,peers);send(ws,{type:'joined',count:peers.size});for(const peer of peers)if(peer!==ws)send(peer,{type:'peer-joined'});return;
   }
-  if(!ws.room)return;const peers=rooms.get(ws.room)||new Set();if(!['offer','answer','ice','caption','caption-preview','speech-caption','typing','call-invite','call-accept','call-decline','call-end'].includes(m.type))return;
+  if(!ws.room)return;const peers=rooms.get(ws.room)||new Set();if(!['offer','answer','ice','caption','caption-preview','speech-caption','typing','call-invite','call-accept','call-decline','call-end','caption-received'].includes(m.type))return;
   if(m.type==='call-invite'&&!['audio','video'].includes(m.mode))return;
   if(['offer','answer'].includes(m.type)&&(!m.sdp||typeof m.sdp!=='object'))return;
   if(m.type==='ice'&&(!m.candidate||typeof m.candidate!=='object'))return;
   if(m.type==='caption'&&(typeof m.text!=='string'||m.text.length>1000||!LANGUAGES[m.lang]))return;
+  // Acknowledgement is forwarded only from the receiving peer, never fabricated by the server.
+  if(m.type==='caption-received'){
+    if(typeof m.id!=='string'||!/^[a-zA-Z0-9-]{8,80}$/.test(m.id))return;
+    for(const peer of peers)if(peer!==ws)send(peer,{type:'caption-received',id:m.id});
+    return;
+  }
+  if(m.type==='caption'){
+    if(typeof m.id!=='string'||!/^[a-zA-Z0-9-]{8,80}$/.test(m.id))return;
+    if(peers.size<2){send(ws,{type:'caption-undelivered',id:m.id});return}
+  }
   if(m.type==='caption-preview'&&(typeof m.text!=='string'||m.text.length>300))return;
   if(m.type==='speech-caption'&&(typeof m.text!=='string'||m.text.length>1000||!LANGUAGES[m.lang]))return;
   for(const peer of peers)if(peer!==ws)send(peer,m);
