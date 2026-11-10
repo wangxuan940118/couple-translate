@@ -155,6 +155,7 @@ let callCaptionEpoch=0;
 const captionNodes=new Map();
 function resetCallCaptions(){
   callCaptionEpoch++;captionNodes.clear();
+  if(typeof previewVersion!=='undefined'){previewVersion.local++;previewVersion.remote++;}
   const feed=$('callCaption');feed.replaceChildren();
   const hint=document.createElement('p');hint.className='captionEmpty';
   hint.textContent='雙方開啟「語音字幕」後，對話會顯示在這裡';
@@ -205,6 +206,10 @@ async function updateSpeechPreview(side,text,sourceLang){
   const epoch=callCaptionEpoch,version=++previewVersion[side];
   captionBubble(id,who,text+' …',sourceLang===target?'':'翻譯中…');
   if(sourceLang===target)return;
+  // Speech recognition emits many interim revisions; debounce API calls to avoid
+  // translating stale fragments and unnecessarily spending translation credits.
+  await new Promise(resolve=>setTimeout(resolve,650));
+  if(!calling||epoch!==callCaptionEpoch||version!==previewVersion[side]||!captionNodes.has(id))return;
   try{
     const translated=await translate(text,sourceLang,target);
     if(calling&&epoch===callCaptionEpoch&&version===previewVersion[side]&&captionNodes.has(id))
