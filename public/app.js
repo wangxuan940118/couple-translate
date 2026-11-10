@@ -64,7 +64,7 @@ const languages=['zh-TW','en','sv','sr','fr','es','ja','ko','de','tr'];
 const other=()=>lang==='zh-TW'?'en':'zh-TW'; // Translation test only; incoming chat always targets the viewer's language.
 const status=t=>$('status').textContent=t;
 const callStatus=t=>$('callStatus').textContent=t;
-const send=m=>{if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify(m))};
+const send=m=>{if(socket?.readyState!==WebSocket.OPEN)return false;socket.send(JSON.stringify(m));return true};
 const safeError=e=>e?.message||String(e);
 // Push requires a Home Screen installation on iOS and server VAPID configuration.
 const deviceId=(()=>{let id=localStorage.getItem('olw-device');if(!id){id=crypto.randomUUID();localStorage.setItem('olw-device',id)}return id})();
@@ -88,8 +88,34 @@ function sendTyping(){if(!joined)return;const now=Date.now();if(now-lastTypingSe
 $('message').addEventListener('input',sendTyping);
 $('callText').addEventListener('input',sendTyping);
 async function translate(text,from,to){if(from===to)return text;const cacheKey=from+'|'+to+'|'+text; if(translationCache.has(cacheKey))return translationCache.get(cacheKey);const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);try{const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,from,to}),signal:controller.signal});const d=await r.json();if(!r.ok)throw Error(d.error||'翻譯服務暫時無法使用');if(typeof d.translation!=='string'||!d.translation.trim())throw Error('翻譯結果為空');translationCache.set(cacheKey,d.translation);if(translationCache.size>120)translationCache.delete(translationCache.keys().next().value);return d.translation}finally{clearTimeout(timeout)}}
-async function postText(text){text=text.trim();if(!text||!joined)return;const bubble=appendChat('我',text);send({type:'caption',text,lang});const target=lang==='zh-TW'?'en':'zh-TW';try{const translated=await translate(text,lang,target);if(translated!==text){const sub=document.createElement('div');sub.className='translation';sub.textContent=translated;bubble.append(sub)}}catch{const sub=document.createElement('div');sub.className='translation';sub.textContent='翻譯暫時無法使用';bubble.append(sub)}}
-async function receiveText(m){const seq=++captionSequence;const bubble=appendChat('寶貝',m.text);notifyIncoming('卡安 ❤️',m.to===lang&&typeof m.translated==='string'&&m.translated.trim()?m.translated:m.text);try{const t=(typeof m.translated==='string'&&m.translated.trim()&&m.to===lang)?m.translated:await translate(m.text,m.lang,lang);if(t!==m.text){const sub=document.createElement('div');sub.className='translation';sub.textContent=t;bubble.append(sub)}}catch{const sub=document.createElement('div');sub.className='translation';sub.textContent='翻譯暫時無法使用';bubble.append(sub)}}
+const pendingMessages=new Map();
+const receivedMessages=new Set();
+function deliveryText(state){return lang==='en'?({pending:'Sending…',sent:'Sent · waiting for delivery',delivered:'Delivered ✓',failed:'Not delivered · tap to retry'})[state]:({pending:'傳送中…',sent:'已傳送 · 等待對方收到',delivered:'已送達 ✓',failed:'未送達 · 點此重試'})[state]}
+function deliveryState(id,state){
+  const item=pendingMessages.get(id);if(!item)return;
+  clearTimeout(item.timer);item.state=state;
+  item.indicator.textContent=deliveryText(state);
+  item.indicator.disabled=state!=='failed';
+  if(state==='delivered'){pendingMessages.delete(id);return}
+  if(state==='sent')item.timer=setTimeout(()=>deliveryState(id,'failed'),12000);
+}
+function attemptDelivery(id){
+  const item=pendingMessages.get(id);if(!item)return;
+  if(!joined||!peerOnline||!send({type:'caption',id,text:item.text,lang:item.sourceLang})){deliveryState(id,'failed');return}
+  deliveryState(id,'sent');
+}
+async function postText(text){
+  text=text.trim();if(!text||!joined)return;
+  const id=crypto.randomUUID();
+  const bubble=appendChat('我',text);
+  const indicator=document.createElement('button');indicator.type='button';indicator.className='deliveryStatus';bubble.append(indicator);
+  pendingMessages.set(id,{text,sourceLang:lang,indicator,state:'pending',timer:null});
+  indicator.onclick=()=>{if(pendingMessages.get(id)?.state==='failed')attemptDelivery(id)};
+  deliveryState(id,'pending');attemptDelivery(id);
+  const target=lang==='zh-TW'?'en':'zh-TW';
+  try{const translated=await translate(text,lang,target);if(translated!==text){const sub=document.createElement('div');sub.className='translation';sub.textContent=translated;bubble.insertBefore(sub,indicator)}}catch{const sub=document.createElement('div');sub.className='translation';sub.textContent=lang==='en'?'Translation temporarily unavailable':'翻譯暫時無法使用';bubble.insertBefore(sub,indicator)}
+}
+async function receiveText(m){if(m.id){if(receivedMessages.has(m.id)){send({type:'caption-received',id:m.id});return}receivedMessages.add(m.id);if(receivedMessages.size>300)receivedMessages.delete(receivedMessages.values().next().value)}const seq=++captionSequence;const bubble=appendChat('寶貝',m.text);if(m.id)send({type:'caption-received',id:m.id});notifyIncoming('卡安 ❤️',m.to===lang&&typeof m.translated==='string'&&m.translated.trim()?m.translated:m.text);try{const t=(typeof m.translated==='string'&&m.translated.trim()&&m.to===lang)?m.translated:await translate(m.text,m.lang,lang);if(t!==m.text){const sub=document.createElement('div');sub.className='translation';sub.textContent=t;bubble.append(sub)}}catch{const sub=document.createElement('div');sub.className='translation';sub.textContent='翻譯暫時無法使用';bubble.append(sub)}}
 // Bilingual caption feed: each participant transcribes their OWN microphone and
 // shares the transcript. Never label the local microphone as remote speech.
 let callCaptionEpoch=0;
@@ -141,14 +167,16 @@ $('manual').onsubmit=e=>{e.preventDefault();postText($('message').value);$('mess
 $('callSend').onclick=()=>{postText($('callText').value);$('callText').value=''};
 $('callText').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('callSend').click()}};
 $('join').onclick=()=>{const room=$('room').value.trim().toUpperCase();if(!/^[A-Z0-9]{6,20}$/.test(room)){ $('setupNotice').textContent='請輸入 6–20 位英數字房間代碼';return}currentRoom=room;$('setupNotice').textContent='';connect(room)};
-function connect(room){socket?.close();joined=false;peerOnline=false;socket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);socket.onopen=()=>send({type:'join',room,device:deviceId});socket.onmessage=e=>{try{handle(JSON.parse(e.data))}catch(err){console.error(err)}};socket.onerror=()=>status('網路連線失敗');socket.onclose=()=>{if(joined){joined=false;peerOnline=false;status('連線已中斷，請重新進入');endCall(false)}}}
+function connect(room){socket?.close();joined=false;peerOnline=false;socket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);socket.onopen=()=>send({type:'join',room,device:deviceId});socket.onmessage=e=>{try{handle(JSON.parse(e.data))}catch(err){console.error(err)}};socket.onerror=()=>status('網路連線失敗');socket.onclose=()=>{for(const id of pendingMessages.keys())deliveryState(id,'failed');if(joined){joined=false;peerOnline=false;status('連線已中斷，請重新進入');endCall(false)}}}
 async function handle(m){switch(m.type){
 case 'joined':joined=true;peerOnline=m.count===2;show('setup',false);show('home',true);status(peerOnline?'♡ 你們都在線上':'等待寶貝加入…');break;
 case 'peer-joined':peerOnline=true;status('♡ 你們都在線上');break;
-case 'peer-left':peerOnline=false;status('寶貝已離開房間');endCall(false);show('incomingCall',false);break;
+case 'peer-left':peerOnline=false;for(const id of pendingMessages.keys())deliveryState(id,'failed');status('寶貝已離開房間');endCall(false);show('incomingCall',false);break;
 case 'typing':$('typingStatus').textContent='對方正在輸入…';clearTimeout(typingClearTimer);typingClearTimer=setTimeout(()=>$('typingStatus').textContent='',2500);break;
 case 'caption-preview':break; // Do not replace final captions with interim text.
 case 'speech-caption':if(typeof m.text==='string'&&languages.includes(m.lang))receiveSpeechCaption(m);break;
+case 'caption-received':if(typeof m.id==='string')deliveryState(m.id,'delivered');break;
+case 'caption-undelivered':if(typeof m.id==='string')deliveryState(m.id,'failed');break;
 case 'caption':$('typingStatus').textContent='';if(typeof m.text==='string'&&languages.includes(m.lang))receiveText(m);break;
 case 'call-invite':if(calling||mode){send({type:'call-decline'});break}mode=m.mode==='video'?'video':'audio';$('incomingMode').textContent=mode==='video'?'視訊通話':'語音通話';$('incomingTitle').textContent='寶貝正在呼叫你…';show('incomingCall',true);notifyIncoming('卡安 ❤️','正在呼叫你 · '+(mode==='video'?'視訊通話':'語音通話'));break;
 case 'call-accept':if(calling){clearTimeout(callTimer);callStatus('正在連線…');await makeOffer()}break;
