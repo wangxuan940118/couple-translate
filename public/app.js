@@ -5,6 +5,8 @@ let typingTimer=null,typingClearTimer=null,lastTypingSent=0;
 let lastPreviewAt=0,previewTimer=null,previewText='',previewSequence=0;
 let lang='zh-TW',socket=null,pc=null,stream=null,recognition=null,recognizing=false,joined=false,peerOnline=false,mode=null,calling=false,remoteReady=false,iceQueue=[],currentRoom='',callTimer=null,speechRestartTimer=null,captionSequence=0,photoBlob=null,photoURL=null;
 const show=(id,on)=>$(id).classList.toggle('hidden',!on);
+// The cover is deliberately shown on every fresh visit; no automatic skip.
+$('coverNext').addEventListener('click',()=>{show('cover',false);show('siteHeader',true);show('setup',true);$('languageSelect').focus()});
 let selectedProfile=localStorage.getItem("olw-profile")==="kaan"?"kaan":"her";
 function applyCoupleProfile(role){selectedProfile=role;localStorage.setItem("olw-profile",role);document.querySelectorAll(".heartChoice").forEach(button=>{const active=button.dataset.profile===role;button.classList.toggle("active",active);button.setAttribute("aria-pressed",String(active))});$("chatlog").removeAttribute("data-wallpaper")}
 document.querySelectorAll(".heartChoice").forEach(button=>button.addEventListener("click",()=>applyCoupleProfile(button.dataset.profile)));
