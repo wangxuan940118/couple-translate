@@ -42,9 +42,24 @@ function applyInterfaceLanguage(){
   const empty=$('callCaption')?.querySelector('.captionEmpty');if(empty)empty.textContent=english?'Turn on captions on both phones to see your conversation here':'雙方開啟「語音字幕」後，對話會顯示在這裡';
 }
 let selectedProfile=localStorage.getItem("olw-profile")==="kaan"?"kaan":"her";
-function applyCoupleProfile(role){selectedProfile=role;localStorage.setItem("olw-profile",role);lang=localStorage.getItem('olw-lang-'+role)||(role==='kaan'?'en':'zh-TW');$('languageSelect').value=lang;document.querySelectorAll(".heartChoice").forEach(button=>{const active=button.dataset.profile===role;button.classList.toggle("active",active);button.setAttribute("aria-pressed",String(active))});$("chatlog").removeAttribute("data-wallpaper");applyInterfaceLanguage()}
+function applyCoupleProfile(role){selectedProfile=role;localStorage.setItem("olw-profile",role);lang=localStorage.getItem('olw-lang-'+role)||(role==='kaan'?'en':'zh-TW');$('languageSelect').value=lang;document.querySelectorAll(".heartChoice").forEach(button=>{const active=button.dataset.profile===role;button.classList.toggle("active",active);button.setAttribute("aria-pressed",String(active))});$("chatlog").removeAttribute("data-wallpaper");applyInterfaceLanguage();updateCoupleClocks()}
 document.querySelectorAll(".heartChoice").forEach(button=>button.addEventListener("click",()=>applyCoupleProfile(button.dataset.profile)));
 applyCoupleProfile(selectedProfile);
+// Time zones are IANA identifiers so Sweden's daylight saving time stays correct.
+function updateCoupleClocks(){
+  const english=lang==='en',locale=english?'en-GB':'zh-TW';
+  for(const [prefix,zone] of [['taiwan','Asia/Taipei'],['sweden','Europe/Stockholm']]){
+    const date=new Date();
+    const clock=$(prefix+'Time'),day=$(prefix+'Date');
+    if(!clock||!day)continue;
+    clock.textContent=new Intl.DateTimeFormat('en-GB',{timeZone:zone,hour:'2-digit',minute:'2-digit',hour12:false}).format(date);
+    clock.dateTime=date.toISOString();
+    day.textContent=new Intl.DateTimeFormat(locale,{timeZone:zone,month:'short',day:'numeric',weekday:'short'}).format(date);
+  }
+  document.querySelectorAll('.clockName').forEach(el=>{el.textContent=el.dataset[english?'clockEn':'clockZh']});
+}
+updateCoupleClocks();setInterval(updateCoupleClocks,15000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateCoupleClocks()});
 const languages=['zh-TW','en','sv','sr','fr','es','ja','ko','de','tr'];
 const other=()=>lang==='zh-TW'?'en':'zh-TW'; // Translation test only; incoming chat always targets the viewer's language.
 const status=t=>$('status').textContent=t;
@@ -64,7 +79,7 @@ async function subscribePush(){if(!joined||!currentRoom){notifyStatus('請先進
 $('enableNotifications').onclick=subscribePush;
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(e=>console.warn('Service worker registration failed',e));
 
-$('languageSelect').onchange=e=>{lang=e.target.value;localStorage.setItem('olw-lang-'+selectedProfile,lang);applyInterfaceLanguage()};
+$('languageSelect').onchange=e=>{lang=e.target.value;localStorage.setItem('olw-lang-'+selectedProfile,lang);applyInterfaceLanguage();updateCoupleClocks()};
 $('random').onclick=()=>{const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',nums=new Uint32Array(10);crypto.getRandomValues(nums);$('room').value=Array.from(nums,n=>chars[n%chars.length]).join('')};
 function appendChat(who,text,translation){const log=$('chatlog');log.querySelector('.empty')?.remove();const p=document.createElement('div');p.className='bubble '+(who==='我'?'mine':'theirs');const title=document.createElement('small');title.textContent=who;p.append(title);const line=document.createElement('div');line.textContent=text;p.append(line);if(translation&&translation!==text){const sub=document.createElement('div');sub.className='translation';sub.textContent=translation;p.append(sub)}log.append(p);log.scrollTop=log.scrollHeight;filterChat();return p}
 function filterChat(){const query=$('searchMessages').value.trim().toLocaleLowerCase();$('chatlog').querySelectorAll('.bubble').forEach(el=>{el.classList.toggle('hidden',Boolean(query)&&!el.textContent.toLocaleLowerCase().includes(query))})}
