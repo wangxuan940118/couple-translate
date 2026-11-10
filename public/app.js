@@ -5,6 +5,9 @@ let typingTimer=null,typingClearTimer=null,lastTypingSent=0;
 let lastPreviewAt=0,previewTimer=null,previewText='',previewSequence=0;
 let lang='zh-TW',socket=null,pc=null,stream=null,recognition=null,recognizing=false,joined=false,peerOnline=false,mode=null,calling=false,remoteReady=false,iceQueue=[],currentRoom='',callTimer=null,speechRestartTimer=null,captionSequence=0,photoBlob=null,photoURL=null;
 const show=(id,on)=>$(id).classList.toggle('hidden',!on);
+const profileSelect=$('profileSelect');
+function applyCoupleWallpaper(){const role=profileSelect.value;localStorage.setItem('olw-profile',role);$('chatlog').dataset.wallpaper=role==='kaan'?'her':'kaan'}
+profileSelect.value=localStorage.getItem('olw-profile')==='kaan'?'kaan':'her';profileSelect.addEventListener('change',applyCoupleWallpaper);applyCoupleWallpaper();
 const languages=['zh-TW','en','sv','sr','fr','es','ja','ko','de','tr'];
 const other=()=>lang==='zh-TW'?'en':'zh-TW'; // Translation test only; incoming chat always targets the viewer's language.
 const status=t=>$('status').textContent=t;
