@@ -155,3 +155,9 @@ body:has(#home:not(.hidden)) #siteHeader{display:none!important}
  #home .composer input{height:38px;min-height:38px;padding:7px 8px}
  #home .composer button.primary{height:38px;min-height:38px;padding:7px 8px}
 }
+
+/* Partner portraits: her account sees Kaan; Kaan sees her. */
+#home .chatlog[data-wallpaper]{background-color:#faf6f0!important;background-repeat:no-repeat!important;background-position:center 58%!important;background-size:contain!important}
+#home .chatlog[data-wallpaper="kaan"]{background-image:linear-gradient(#faf6f0a8,#faf6f0a8),url('/wallpapers/kaan.jpg')!important}
+#home .chatlog[data-wallpaper="her"]{background-image:linear-gradient(#faf6f0a8,#faf6f0a8),url('/wallpapers/her.jpg')!important}
+#home .chatlog[data-wallpaper] .bubble{position:relative;z-index:1}
