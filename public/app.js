@@ -5,9 +5,10 @@ let typingTimer=null,typingClearTimer=null,lastTypingSent=0;
 let lastPreviewAt=0,previewTimer=null,previewText='',previewSequence=0;
 let lang='zh-TW',socket=null,pc=null,stream=null,recognition=null,recognizing=false,joined=false,peerOnline=false,mode=null,calling=false,remoteReady=false,iceQueue=[],currentRoom='',callTimer=null,speechRestartTimer=null,captionSequence=0,photoBlob=null,photoURL=null;
 const show=(id,on)=>$(id).classList.toggle('hidden',!on);
-const profileSelect=$('profileSelect');
-function applyCoupleWallpaper(){const role=profileSelect.value;localStorage.setItem('olw-profile',role);$('chatlog').dataset.wallpaper=role==='kaan'?'her':'kaan'}
-profileSelect.value=localStorage.getItem('olw-profile')==='kaan'?'kaan':'her';profileSelect.addEventListener('change',applyCoupleWallpaper);applyCoupleWallpaper();
+let selectedProfile=localStorage.getItem("olw-profile")==="kaan"?"kaan":"her";
+function applyCoupleProfile(role){selectedProfile=role;localStorage.setItem("olw-profile",role);document.querySelectorAll(".heartChoice").forEach(button=>{const active=button.dataset.profile===role;button.classList.toggle("active",active);button.setAttribute("aria-pressed",String(active))});$("chatlog").removeAttribute("data-wallpaper")}
+document.querySelectorAll(".heartChoice").forEach(button=>button.addEventListener("click",()=>applyCoupleProfile(button.dataset.profile)));
+applyCoupleProfile(selectedProfile);
 const languages=['zh-TW','en','sv','sr','fr','es','ja','ko','de','tr'];
 const other=()=>lang==='zh-TW'?'en':'zh-TW'; // Translation test only; incoming chat always targets the viewer's language.
 const status=t=>$('status').textContent=t;
