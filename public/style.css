@@ -161,3 +161,12 @@ body:has(#home:not(.hidden)) #siteHeader{display:none!important}
 #home .chatlog[data-wallpaper="kaan"]{background-image:linear-gradient(#faf6f0a8,#faf6f0a8),url('/84B8007E-4986-4129-B91F-D8780E7A44C2.png')!important}
 #home .chatlog[data-wallpaper="her"]{background-image:linear-gradient(#faf6f0a8,#faf6f0a8),url('/wallpaper-her.svg')!important}
 #home .chatlog[data-wallpaper] .bubble{position:relative;z-index:1}
+
+/* Keep the welcome cover separate from the two in-chat portraits. */
+#cover .coupleCoverPhoto{display:block!important;visibility:visible!important;opacity:1!important;max-width:100%;height:auto}
+#cover .coverArt{overflow:visible}
+#home .chatlog[data-wallpaper]{position:relative;isolation:isolate;background:#faf6f0!important;overflow:hidden}
+#home .chatlog[data-wallpaper]::before{content:"";position:absolute;inset:0;z-index:-1;opacity:1!important;pointer-events:none;background-position:center;background-size:contain;background-repeat:no-repeat}
+#home .chatlog[data-wallpaper="kaan"]::before{background-image:linear-gradient(#faf6f09c,#faf6f09c),url('/84B8007E-4986-4129-B91F-D8780E7A44C2.png')!important}
+#home .chatlog[data-wallpaper="her"]::before{background-image:linear-gradient(#faf6f09c,#faf6f09c),url('/wallpaper-her.svg')!important}
+#home .chatlog[data-wallpaper] .empty,#home .chatlog[data-wallpaper] .bubble{position:relative;z-index:1}
