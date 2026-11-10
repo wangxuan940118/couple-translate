@@ -158,6 +158,6 @@ body:has(#home:not(.hidden)) #siteHeader{display:none!important}
 
 /* Partner portraits: her account sees Kaan; Kaan sees her. */
 #home .chatlog[data-wallpaper]{background-color:#faf6f0!important;background-repeat:no-repeat!important;background-position:center 58%!important;background-size:contain!important}
-#home .chatlog[data-wallpaper="kaan"]{background-image:linear-gradient(#faf6f0a8,#faf6f0a8),url('/wallpapers/kaan.jpg')!important}
+#home .chatlog[data-wallpaper="kaan"]{background-image:linear-gradient(#faf6f0a8,#faf6f0a8),url('/84B8007E-4986-4129-B91F-D8780E7A44C2.png')!important}
 #home .chatlog[data-wallpaper="her"]{background-image:linear-gradient(#faf6f0a8,#faf6f0a8),url('/wallpapers/her.jpg')!important}
 #home .chatlog[data-wallpaper] .bubble{position:relative;z-index:1}
