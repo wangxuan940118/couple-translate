@@ -40,3 +40,5 @@ body{background:#f8f7f5;color:#242424}.app{color:#242424}.panel{background:#fff;
 
 /* Our Little Time — both local clocks, including Swedish DST. */
 .coupleClocks{margin:12px 0 18px;padding:13px;border:1px solid #e4e0dd;border-radius:18px;background:#fff}.clockHeading{text-align:center;font-size:11px;letter-spacing:.14em;color:#8a7f79;margin-bottom:12px}.clockGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.clockCard{text-align:center;border-radius:14px;background:#f0eeec;padding:12px 6px;color:#292625}.clockName{font-size:12px;margin-bottom:6px}.clockTime{display:block;font-size:clamp(23px,6vw,32px);font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:.01em}.clockDate{font-size:11px;color:#77716c;margin-top:5px}
+
+.deliveryStatus{display:block;margin-top:7px;padding:3px 0;border:0;background:transparent;color:#777;font-size:11px;text-align:left;cursor:default}.deliveryStatus:not(:disabled){color:#b03a3a;text-decoration:underline;cursor:pointer}
