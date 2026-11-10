@@ -16,7 +16,7 @@
 - 測試入口：<https://couple-world-lab.fullbluff.chatgpt.site>；project `appgprj_6af11b4502108191b06d344400cd1cb9`。
 - 現有 Render：<https://couple-translate.onrender.com/>。
 - LAB 是 Worker／D1；Render 版本是 Node.js／WebSocket。不可把兩套不同協定未經整合直接混用。
-- 不更新舊 `couple-world-test` 站。NAS 未知、未連線、未部署；正式部署仍需使用者批准具體版本。
+- 不更新舊 `couple-world-test` 站。NAS 未知、未連線、未部署。使用者現已授權部署整理好的版本，但主機位址與存取尚未提供。
 
 ## 不可混淆的狀態
 
@@ -32,4 +32,10 @@
 
 已加入已驗證登入後恢復房間、PostgreSQL 歷史分頁、伺服器 ACK 前等待狀態、具固定 ID 的待傳佇列、斷線重連、同帳號分頁互斥、通話不中斷的 WS 登入續期、雙方時區顯示。語言與愛心分開記憶；歷史只翻譯對方訊息，預設限制自動翻譯最近十則並以兩個工作處理。主畫面圖片使用使用者參考生成之 JPEG。
 
-這些是程式與 DOM／協定測試結果，尚未證明真實 Supabase、重部署或兩支手機通過。使用者已建立 Supabase 專案，正依指引執行 SQL；目前尚無伺服器環境金鑰或 Render 管理存取。不能把既有 LAB 外觀更新說成 PostgreSQL 已部署。
+這些是程式與 DOM／協定測試結果，尚未證明真實 Supabase、重部署或兩支手機通過。使用者已建立 Supabase 專案，且截圖顯示初始化 SQL 已成功執行；兩個帳號設定進行中，目前尚無伺服器環境金鑰或 Render／NAS 管理存取。不能把既有 LAB 外觀更新說成 PostgreSQL 已部署。
+
+## 已核對的提交與上線狀態
+
+- 完整私人聊天程式：`7e9439b0fd3f78621d2f1d77c84772c2e2db85e5`，PR #4 尚為 draft、未合併。55 項測試通過，GitHub Actions run `42817611450` 為 success。真實讀寫／關閉重開／重部署持久性仍待驗收。
+- LAB 封面與雙愛心第 6 版已部署成功，來源 `b49a0e3f0b0f7168d6613ffc51e8d1a62666ecbc`，deployment `appgdep_6af310ba32808191b350645a73bf5635`。這是既有 Worker 測試站的外觀更新，不是 PostgreSQL 功能上線。
+- NAS 部署檔案已備妥，見 `docs/NAS_DEPLOY.md`。本機 Docker socket 存取被拒，附加權限檢查另遇 sandbox 掛載錯誤；映像建置與 NAS 執行尚未驗證。使用者表示不知道 NAS 管理位址，正在釐清其所指是雲端正式上線或實體 NAS。

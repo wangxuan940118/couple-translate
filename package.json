@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test test/*.test.js",
-    "check": "node --check server.js && node --check public/app.js && node --check public/auth.js && node --check public/call-quality.js && node --check lib/private-chat.js"
+    "check": "node --check server.js && node --check public/app.js && node --check public/auth.js && node --check public/call-quality.js && node --check lib/private-chat.js && node --check scripts/container-health.cjs"
   },
   "engines": {
     "node": ">=20"
