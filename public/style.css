@@ -183,3 +183,10 @@ body:has(.nestNav:not(.hidden)) .app{padding-bottom:95px}
 .nestArtwork{padding:12px;min-height:0;background:#fffdf9}
 .nestArtwork img{width:100%;height:auto;max-height:440px;object-fit:contain;object-position:center center;border-radius:12px}
 @media(max-width:520px){.nestArtwork{padding:8px;margin:14px auto 12px}.nestArtwork img{max-height:52vh;min-height:0;object-fit:contain}.nestPage{padding:17px 12px 24px}}
+
+/* 2.0 mobile polish: tighter artwork, readable leave button, centered chat portrait. */
+.nestArtwork{max-width:440px;margin:12px auto 12px;padding:6px;min-height:0}
+.nestArtwork img{display:block;width:100%;height:auto;max-height:340px;object-fit:contain;object-position:center}
+#nestLeave{color:#694b45!important;background:#fffaf3!important;border:1px solid #d7c5b6!important;font-weight:600!important;opacity:1!important}
+#home .chatlog[data-wallpaper]::before{background-position:center 38%!important;background-size:contain!important}
+@media(max-width:520px){.nestArtwork{max-width:340px;margin:10px auto}.nestArtwork img{max-height:310px}.nestPage{padding:16px 12px 22px}#home .chatlog[data-wallpaper]::before{background-position:center 35%!important}}

@@ -239,11 +239,33 @@ $('manual').onsubmit=e=>{e.preventDefault();postText($('message').value);$('mess
 $('callSend').onclick=()=>{postText($('callText').value);$('callText').value=''};
 $('callText').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('callSend').click()}};
 $('join').onclick=()=>{const room=$('room').value.trim().toUpperCase();if(!/^[A-Z0-9]{6,20}$/.test(room)){ $('setupNotice').textContent='請輸入 6–20 位英數字房間代碼';return}currentRoom=room;$('setupNotice').textContent='';connect(room)};
-function connect(room){socket?.close();joined=false;peerOnline=false;socket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);socket.onopen=()=>send({type:'join',room,device:deviceId});socket.onmessage=e=>{try{handle(JSON.parse(e.data))}catch(err){console.error(err)}};socket.onerror=()=>status('網路連線失敗');socket.onclose=()=>{for(const id of pendingMessages.keys())deliveryState(id,'failed');if(joined){joined=false;peerOnline=false;status('連線已中斷，請重新進入');endCall(false)}}}
+let reconnectTimer=null,reconnectAttempt=0,manualDisconnect=false;
+function connect(room,retry=false){
+ if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null}
+ if(!retry){manualDisconnect=false;reconnectAttempt=0}
+ const previous=socket;
+ const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);
+ socket=ws;
+ if(previous&&previous!==ws)previous.close();
+ if(!retry){joined=false;peerOnline=false}
+ ws.onopen=()=>{if(socket===ws)send({type:'join',room,device:deviceId})};
+ ws.onmessage=e=>{if(socket!==ws)return;try{handle(JSON.parse(e.data))}catch(err){console.error(err)}};
+ ws.onerror=()=>{if(socket===ws)status('網路連線失敗，正在嘗試重新連線…')};
+ ws.onclose=()=>{
+  if(socket!==ws||manualDisconnect)return;
+  for(const id of pendingMessages.keys())deliveryState(id,'failed');
+  const wasJoined=joined;joined=false;peerOnline=false;
+  if(wasJoined){endCall(false);show('incomingCall',false)}
+  const wait=Math.min(15000,1000*Math.pow(2,Math.min(reconnectAttempt++,4)));
+  status('連線中斷，'+Math.ceil(wait/1000)+' 秒後自動重連…');
+  reconnectTimer=setTimeout(()=>{reconnectTimer=null;if(!manualDisconnect&&currentRoom===room)connect(room,true)},wait);
+ };
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!manualDisconnect&&currentRoom&&socket?.readyState===WebSocket.CLOSED){if(reconnectTimer)clearTimeout(reconnectTimer);reconnectTimer=null;connect(currentRoom,true)}});
 async function handle(m){switch(m.type){
-case 'joined':joined=true;peerOnline=m.count===2;show('setup',false);setNestView('nest');status(peerOnline?'♡ 你們都在線上':'等待寶貝加入…');break;
-case 'peer-joined':peerOnline=true;status('♡ 你們都在線上');break;
-case 'peer-left':peerOnline=false;for(const id of pendingMessages.keys())deliveryState(id,'failed');status('寶貝已離開房間');endCall(false);show('incomingCall',false);break;
+case 'joined':{const alreadyInside=!$('setup').classList.contains('hidden');joined=true;reconnectAttempt=0;peerOnline=m.count>1;show('setup',false);setNestView(alreadyInside?'nest':nestView);status(peerOnline?'♡ 房間已有其他裝置連線':'等待寶貝加入…');break;}
+case 'peer-joined':peerOnline=m.count>1;status('♡ 房間已有其他裝置連線');break;
+case 'peer-left':peerOnline=m.count>1;for(const id of pendingMessages.keys())deliveryState(id,'failed');status(peerOnline?'♡ 仍有其他裝置在線上':'其他裝置已離開房間');endCall(false);show('incomingCall',false);break;
 case 'typing':$('typingStatus').textContent='對方正在輸入…';clearTimeout(typingClearTimer);typingClearTimer=setTimeout(()=>$('typingStatus').textContent='',2500);break;
 case 'caption-preview':if(calling&&typeof m.text==='string'&&languages.includes(m.lang))updateSpeechPreview('remote',m.text.trim().slice(0,300),m.lang);break;
 case 'speech-caption':if(typeof m.text==='string'&&languages.includes(m.lang))receiveSpeechCaption(m);break;
@@ -268,7 +290,7 @@ $('decline').onclick=()=>{send({type:'call-decline'});mode=null;show('incomingCa
 $('accept').onclick=async()=>{const which=mode;if(!which)return;if(await setupCall(which)){callStatus('正在接聽…');send({type:'call-accept'})}else send({type:'call-decline'})};
 function endCall(notify=true){show('resumeAudio',false);callCaptionEpoch++;remoteCaptionSeq++;clearInterval(connectionWatch);connectionWatch=null;clearTimeout(callTimer);clearTimeout(speechRestartTimer);clearTimeout(previewTimer);previewText='';clearSpeechPreview('local');clearSpeechPreview('remote');recognizing=false;$('speechStatus').textContent='點「語音字幕」開始辨識';try{recognition?.stop()}catch{}recognition=null;if(notify&&joined)send({type:'call-end'});pc?.close();pc=null;stream?.getTracks().forEach(t=>t.stop());stream=null;$('local').srcObject=null;$('remote').srcObject=null;calling=false;mode=null;remoteReady=false;iceQueue=[];closePhoto();show('call',false);show('incomingCall',false);show('home',joined&&nestView==='chat');$('mic').querySelector('small').textContent='語音字幕'}
 $('hangup').onclick=()=>endCall(true);
-$('leave').onclick=()=>{endCall(true);socket?.close();joined=false;peerOnline=false;show('home',false);show('littleNest',false);show('nestNav',false);show('setup',true)};
+$('leave').onclick=()=>{manualDisconnect=true;clearTimeout(reconnectTimer);reconnectTimer=null;currentRoom='';endCall(true);socket?.close();joined=false;peerOnline=false;show('home',false);show('littleNest',false);show('nestNav',false);show('setup',true)};
 $('mute').onclick=()=>{const t=stream?.getAudioTracks()[0];if(!t)return;t.enabled=!t.enabled;$('mute').querySelector('small').textContent=t.enabled?'靜音':'取消靜音'};
 $('camera').onclick=()=>{const t=stream?.getVideoTracks()[0];if(!t)return;t.enabled=!t.enabled;$('camera').querySelector('small').textContent=t.enabled?'關閉鏡頭':'開啟鏡頭'};
 $('flip').onclick=async()=>{const old=stream?.getVideoTracks()[0];if(!old)return;try{const facing=old.getSettings().facingMode==='environment'?'user':'environment';const next=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facing}},audio:false});const track=next.getVideoTracks()[0];const sender=pc?.getSenders().find(s=>s.track?.kind==='video');if(sender)await sender.replaceTrack(track);stream.removeTrack(old);old.stop();stream.addTrack(track);$('local').srcObject=stream}catch(e){alert('無法切換鏡頭：'+safeError(e))}};

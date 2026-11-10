@@ -59,8 +59,8 @@ wss.on('connection',ws=>{
   if(m.type==='join'){
    if(ws.room)return send(ws,{type:'error',message:'Already joined a room'});
    const room=String(m.room||'').trim().toUpperCase();if(!/^[A-Z0-9]{6,20}$/.test(room))return send(ws,{type:'error',message:'Invalid room code'});
-   let peers=rooms.get(room)||new Set();if(peers.size>=2)return send(ws,{type:'error',message:'Room is full'});
-   ws.room=room;ws.device=typeof m.device==='string'&&/^[a-f0-9-]{20,64}$/.test(m.device)?m.device:null;peers.add(ws);rooms.set(room,peers);send(ws,{type:'joined',count:peers.size});for(const peer of peers)if(peer!==ws)send(peer,{type:'peer-joined'});return;
+   let peers=rooms.get(room)||new Set();if(peers.size>=6)return send(ws,{type:'error',message:'Room is full (maximum 6 devices)'});
+   ws.room=room;ws.device=typeof m.device==='string'&&/^[a-f0-9-]{20,64}$/.test(m.device)?m.device:null;peers.add(ws);rooms.set(room,peers);send(ws,{type:'joined',count:peers.size});for(const peer of peers)if(peer!==ws)send(peer,{type:'peer-joined',count:peers.size});return;
   }
   if(!ws.room)return;const peers=rooms.get(ws.room)||new Set();if(!['offer','answer','ice','caption','caption-preview','speech-caption','typing','call-invite','call-accept','call-decline','call-end','caption-received'].includes(m.type))return;
   if(m.type==='call-invite'&&!['audio','video'].includes(m.mode))return;
@@ -83,6 +83,6 @@ wss.on('connection',ws=>{
   if(m.type==='caption')pushToRoom(ws.room,ws.device,{title:'Our Little World ❤️',body:typeof m.translated==='string'&&m.translated.trim()?m.translated.slice(0,200):m.text.slice(0,200),url:'/'}).catch(console.warn);
   if(m.type==='call-invite')pushToRoom(ws.room,ws.device,{title:'Our Little World ❤️',body:m.mode==='video'?'寶貝正在打視訊給你':'寶貝正在打電話給你',url:'/'}).catch(console.warn);
  });
- ws.on('close',()=>{if(!ws.room)return;const peers=rooms.get(ws.room);if(!peers)return;peers.delete(ws);for(const peer of peers)send(peer,{type:'peer-left'});if(!peers.size)rooms.delete(ws.room)});
+ ws.on('close',()=>{if(!ws.room)return;const peers=rooms.get(ws.room);if(!peers)return;peers.delete(ws);for(const peer of peers)send(peer,{type:'peer-left',count:peers.size});if(!peers.size)rooms.delete(ws.room)});
 });
 server.listen(PORT,()=>console.log(`Couple Translate listening on ${PORT}`));
