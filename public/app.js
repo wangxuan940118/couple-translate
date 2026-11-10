@@ -116,7 +116,39 @@ async function postText(text){
   const pendingTranslation=document.createElement('div');pendingTranslation.className='translation';pendingTranslation.textContent=lang==='en'?'Translating…':'翻譯中…';bubble.insertBefore(pendingTranslation,indicator);
   try{const translated=await translate(text,lang,target);pendingTranslation.textContent=translated||text}catch{pendingTranslation.textContent=lang==='en'?'Translation temporarily unavailable':'翻譯暫時無法使用'}
 }
-async function receiveText(m){if(m.id){if(receivedMessages.has(m.id)){send({type:'caption-received',id:m.id});return}receivedMessages.add(m.id);if(receivedMessages.size>300)receivedMessages.delete(receivedMessages.values().next().value)}const seq=++captionSequence;const bubble=appendChat('寶貝',m.text);const pendingTranslation=document.createElement('div');pendingTranslation.className='translation';pendingTranslation.textContent=lang==='en'?'Translating…':'翻譯中…';bubble.append(pendingTranslation);if(m.id)send({type:'caption-received',id:m.id});notifyIncoming('卡安 ❤️',m.to===lang&&typeof m.translated==='string'&&m.translated.trim()?m.translated:m.text);try{const t=(typeof m.translated==='string'&&m.translated.trim()&&m.to===lang)?m.translated:await translate(m.text,m.lang,lang);pendingTranslation.textContent=t||m.text}catch{pendingTranslation.textContent=lang==='en'?'Translation temporarily unavailable':'翻譯暫時無法使用'}}
+async function receiveText(m){
+  if(m.id){
+    if(receivedMessages.has(m.id)){send({type:'caption-received',id:m.id});return}
+    receivedMessages.add(m.id);
+    if(receivedMessages.size>300)receivedMessages.delete(receivedMessages.values().next().value);
+  }
+  const bubble=appendChat('寶貝',m.text);
+  const targetLang=lang,sourceLang=m.lang;
+  const pendingTranslation=document.createElement('div');
+  pendingTranslation.className='translation';
+  bubble.append(pendingTranslation);
+  if(m.id)send({type:'caption-received',id:m.id});
+  const supplied=(m.to===targetLang&&typeof m.translated==='string')?m.translated.trim():'';
+  notifyIncoming('卡安 ❤️',supplied||m.text);
+  async function renderTranslation(){
+    pendingTranslation.textContent=targetLang==='en'?'Translating…':'翻譯中…';
+    pendingTranslation.classList.remove('translationFailed');
+    pendingTranslation.removeAttribute('role');
+    if(sourceLang===targetLang){pendingTranslation.remove();return}
+    try{
+      const translated=supplied||await translate(m.text,sourceLang,targetLang);
+      pendingTranslation.textContent=translated||m.text;
+    }catch(e){
+      pendingTranslation.classList.add('translationFailed');
+      pendingTranslation.setAttribute('role','button');
+      pendingTranslation.tabIndex=0;
+      pendingTranslation.textContent=targetLang==='en'?'Translation failed · Tap to retry':'翻譯失敗 · 點此重試';
+    }
+  }
+  pendingTranslation.onclick=()=>{if(pendingTranslation.classList.contains('translationFailed'))renderTranslation()};
+  pendingTranslation.onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&pendingTranslation.classList.contains('translationFailed')){e.preventDefault();renderTranslation()}};
+  await renderTranslation();
+}
 // Bilingual caption feed: each participant transcribes their OWN microphone and
 // shares the transcript. Never label the local microphone as remote speech.
 let callCaptionEpoch=0;
