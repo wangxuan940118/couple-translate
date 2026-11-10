@@ -42,7 +42,7 @@ function applyInterfaceLanguage(){
   const empty=$('callCaption')?.querySelector('.captionEmpty');if(empty)empty.textContent=english?'Turn on captions on both phones to see your conversation here':'雙方開啟「語音字幕」後，對話會顯示在這裡';
 }
 let selectedProfile=localStorage.getItem("olw-profile")==="kaan"?"kaan":"her";
-function applyCoupleProfile(role){selectedProfile=role;localStorage.setItem("olw-profile",role);lang=localStorage.getItem('olw-lang-'+role)||(role==='kaan'?'en':'zh-TW');$('languageSelect').value=lang;document.querySelectorAll(".heartChoice").forEach(button=>{const active=button.dataset.profile===role;button.classList.toggle("active",active);button.setAttribute("aria-pressed",String(active))});$("chatlog").removeAttribute("data-wallpaper");applyInterfaceLanguage();updateCoupleClocks()}
+function applyCoupleProfile(role){selectedProfile=role;localStorage.setItem("olw-profile",role);lang=localStorage.getItem('olw-lang-'+role)||(role==='kaan'?'en':'zh-TW');$('languageSelect').value=lang;document.querySelectorAll(".heartChoice").forEach(button=>{const active=button.dataset.profile===role;button.classList.toggle("active",active);button.setAttribute("aria-pressed",String(active))});$("chatlog").dataset.wallpaper=role==="kaan"?"her":"kaan";applyInterfaceLanguage();updateCoupleClocks()}
 document.querySelectorAll(".heartChoice").forEach(button=>button.addEventListener("click",()=>applyCoupleProfile(button.dataset.profile)));
 applyCoupleProfile(selectedProfile);
 // Time zones are IANA identifiers so Sweden's daylight saving time stays correct.
