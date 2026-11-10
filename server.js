@@ -62,12 +62,13 @@ wss.on('connection',ws=>{
    let peers=rooms.get(room)||new Set();if(peers.size>=2)return send(ws,{type:'error',message:'Room is full'});
    ws.room=room;ws.device=typeof m.device==='string'&&/^[a-f0-9-]{20,64}$/.test(m.device)?m.device:null;peers.add(ws);rooms.set(room,peers);send(ws,{type:'joined',count:peers.size});for(const peer of peers)if(peer!==ws)send(peer,{type:'peer-joined'});return;
   }
-  if(!ws.room)return;const peers=rooms.get(ws.room)||new Set();if(!['offer','answer','ice','caption','caption-preview','typing','call-invite','call-accept','call-decline','call-end'].includes(m.type))return;
+  if(!ws.room)return;const peers=rooms.get(ws.room)||new Set();if(!['offer','answer','ice','caption','caption-preview','speech-caption','typing','call-invite','call-accept','call-decline','call-end'].includes(m.type))return;
   if(m.type==='call-invite'&&!['audio','video'].includes(m.mode))return;
   if(['offer','answer'].includes(m.type)&&(!m.sdp||typeof m.sdp!=='object'))return;
   if(m.type==='ice'&&(!m.candidate||typeof m.candidate!=='object'))return;
   if(m.type==='caption'&&(typeof m.text!=='string'||m.text.length>1000||!LANGUAGES[m.lang]))return;
   if(m.type==='caption-preview'&&(typeof m.text!=='string'||m.text.length>300))return;
+  if(m.type==='speech-caption'&&(typeof m.text!=='string'||m.text.length>1000||!LANGUAGES[m.lang]))return;
   for(const peer of peers)if(peer!==ws)send(peer,m);
   if(m.type==='caption')pushToRoom(ws.room,ws.device,{title:'Our Little World ❤️',body:typeof m.translated==='string'&&m.translated.trim()?m.translated.slice(0,200):m.text.slice(0,200),url:'/'}).catch(console.warn);
   if(m.type==='call-invite')pushToRoom(ws.room,ws.device,{title:'Our Little World ❤️',body:m.mode==='video'?'寶貝正在打視訊給你':'寶貝正在打電話給你',url:'/'}).catch(console.warn);
