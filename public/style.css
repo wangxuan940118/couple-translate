@@ -42,3 +42,63 @@ body{background:#f8f7f5;color:#242424}.app{color:#242424}.panel{background:#fff;
 .coupleClocks{margin:12px 0 18px;padding:13px;border:1px solid #e4e0dd;border-radius:18px;background:#fff}.clockHeading{text-align:center;font-size:11px;letter-spacing:.14em;color:#8a7f79;margin-bottom:12px}.clockGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.clockCard{text-align:center;border-radius:14px;background:#f0eeec;padding:12px 6px;color:#292625}.clockName{font-size:12px;margin-bottom:6px}.clockTime{display:block;font-size:clamp(23px,6vw,32px);font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:.01em}.clockDate{font-size:11px;color:#77716c;margin-top:5px}
 
 .deliveryStatus{display:block;margin-top:7px;padding:3px 0;border:0;background:transparent;color:#777;font-size:11px;text-align:left;cursor:default}.deliveryStatus:not(:disabled){color:#b03a3a;text-decoration:underline;cursor:pointer}
+
+/* 2026 redesign: second (private entry) and third (chat) pages only. */
+#setup,#home{--ink:#292623;--sub:#827b75;--line:#e9e4df;--paper:#fffdfa;--soft:#f6f2ed;color:var(--ink);border:1px solid #eee8e1;background:var(--paper);box-shadow:0 22px 65px #655b4c13;border-radius:30px}
+#setup{max-width:510px;padding:clamp(22px,5vw,42px);margin:12px auto 40px}
+#setup .loveIntro{padding:12px 4px 22px;border-bottom:1px solid var(--line);margin-bottom:24px}
+#setup .loveHearts{color:#8e8078;font-size:20px;letter-spacing:13px}
+#setup .loveIntro h2{color:var(--ink);font:normal clamp(28px,7vw,38px)/1.2 Georgia,serif;letter-spacing:-.035em;margin:16px 0 12px}
+#setup .loveIntro p{color:var(--sub);font-size:13px;line-height:1.9;margin:0}
+#setup .profileLabel{color:var(--sub);font-size:12px;letter-spacing:.08em}
+#setup .heartChoices{gap:18px;margin:15px auto 22px}
+#setup .heartChoice{width:88px;height:88px;border-radius:25px;font-size:44px;box-shadow:none}
+#setup .heartChoice.whiteHeart{background:#f7f5f2;color:#fff;text-shadow:0 1px 3px #777,0 0 1px #444;border:1px solid #d9d3ce}
+#setup .heartChoice.blackHeart{background:#f0eeeb;color:#292623;border:1px solid #d9d3ce}
+#setup .heartChoice.active{transform:translateY(-2px);border:2px solid #82766c;box-shadow:0 0 0 4px #a69b901c}
+#setup label{color:#514c48;font-size:12px;letter-spacing:.035em;margin:19px 0 9px}
+#setup input,#setup select,#setup>select{width:100%;background:#f7f5f2;color:#302c28;border:1px solid #e3ddd7;border-radius:13px;min-height:50px;padding:13px 14px;box-shadow:none}
+#setup input:focus,#setup select:focus{outline:2px solid #b3a79d;outline-offset:1px}
+#setup .roomrow{align-items:stretch;gap:9px}
+#setup .roomrow input{width:auto;flex:1}
+#setup .roomrow button,#setup .translationTester button{background:#ede8e2;border:1px solid #ded6ce;color:#423b36;font-size:12px;padding:10px 13px;border-radius:12px;white-space:nowrap}
+#setup .hint{color:#948b83;font-size:11px}
+#setup #join{margin-top:20px;min-height:55px;background:#302b28!important;border-color:#302b28!important;color:#fff!important;font-size:15px;letter-spacing:.06em;border-radius:14px}
+#setup .translationTester{margin-top:28px;padding:18px;background:#f8f6f3;border:1px solid var(--line);border-radius:18px}
+#setup .translationTester label:first-child{margin-top:0}
+#setup .translationTester .composer{margin-top:10px}
+#home{max-width:760px;margin:auto;padding:clamp(16px,4vw,32px);min-height:calc(100svh - 70px)}
+#home .homebar{padding:4px 2px 19px;border-bottom:1px solid var(--line);align-items:center}
+#home .eyebrow{color:#9b8f86;font-size:10px;letter-spacing:.22em}
+#home .homebar h2{font:normal clamp(28px,6vw,38px)/1.15 Georgia,serif;color:var(--ink);margin:8px 0 8px}
+#home .homebar small{color:#8c8179;font-size:12px}
+#home .heart{color:#9b8b81}
+#home button.secondary{background:#f5f1ed;border:1px solid #e8e1db;color:#655b53;border-radius:13px}
+#home .coupleClocks{background:transparent;border:0;padding:0;margin:20px 0 14px}
+#home .clockHeading{font-size:10px;color:#a69a90;letter-spacing:.2em}
+#home .clockGrid{gap:11px}
+#home .clockCard{background:#f6f2ee;border:1px solid #ebe4dd;border-radius:19px;padding:16px 7px}
+#home .clockName{color:#6e635c;font-size:12px}
+#home .clockTime{color:#302b28;font-size:clamp(26px,6vw,34px);font-weight:600;letter-spacing:-.04em}
+#home .clockDate{color:#93877f}
+#home .notificationSettings{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0}
+#home .notificationSettings button{flex-shrink:0;font-size:12px;padding:10px}
+#home .notificationSettings .hint{margin:0;color:#9b9089;font-size:10px}
+#home .callActions{gap:10px;margin:14px 0 18px}
+#home .callAction{background:#f4f0ec;border:1px solid #e9e2dc;color:#443c36;border-radius:17px;padding:14px 10px;font-size:13px}
+#home .callAction span{font-size:21px;margin-bottom:6px}
+#home .chatTools{margin:10px 0 12px}
+#home .chatTools input{background:#f7f5f2;border:1px solid #e9e3dd;color:#3b332e;border-radius:13px;padding:12px}
+#home .chatTools .hint{color:#998d84}
+#home .chatlog{height:clamp(300px,43svh,510px);background:#faf8f5!important;border:1px solid #ece6e0;border-radius:21px;padding:17px 13px;gap:14px}
+#home .chatlog .empty{color:#aaa098;font-size:13px}
+#home .chatlog .bubble{max-width:87%;background:#fff;border:1px solid #e9e2db;color:#39322d;box-shadow:0 3px 10px #30241b07;border-radius:18px 18px 18px 5px;padding:12px 14px;font-size:14px;line-height:1.55}
+#home .chatlog .bubble.mine{background:#eae4de;color:#2f2a27;border-color:#eae4de;border-radius:18px 18px 5px 18px}
+#home .bubble small{color:#8e8077;opacity:1;font-size:11px}
+#home .translation{border-top:1px solid #b7aaa34d;color:#625850;margin-top:9px;padding-top:9px;font-size:13px}
+#home .deliveryStatus{font-size:10px;color:#8b8078}
+#home .composer{gap:9px;margin-top:13px}
+#home .composer input{background:#f7f5f2;border:1px solid #e6dfd8;color:#302b28;border-radius:15px;min-height:51px;padding:13px}
+#home .composer button.primary{background:#302b28!important;color:#fff!important;border-color:#302b28!important;border-radius:14px;padding:12px 18px;font-size:13px}
+#home>p.hint{color:#a69b92;font-size:10px;margin-top:13px}
+@media(max-width:500px){#setup{border-radius:23px;padding:22px 19px}#home{border-radius:22px;padding:17px 13px;min-height:calc(100svh - 40px)}#home .notificationSettings{align-items:flex-start;flex-direction:column}#home .chatlog{padding:13px 10px}#home .chatTools{flex-wrap:wrap}#home .chatTools span{white-space:normal}}
