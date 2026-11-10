@@ -1,0 +1,19 @@
+# Only the runtime source and npm lockfile enter the build context.
+**
+!Dockerfile
+!package.json
+!package-lock.json
+!server.js
+!lib/
+!lib/**
+!public/
+!public/**
+!scripts/
+!scripts/container-health.cjs
+# Never include credentials or local runtime/dependency data, even if misplaced.
+**/.env
+**/.env.*
+**/node_modules
+**/.git
+**/*.pem
+**/*.key
