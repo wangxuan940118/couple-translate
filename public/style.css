@@ -136,3 +136,7 @@ body:has(#home:not(.hidden)) #siteHeader{display:none!important}
  #home .notificationSettings .hint{font-size:9px}
  #home .chatlog{height:clamp(260px,46svh,470px)}
 }
+
+/* iOS Safari: visible user gesture when remote media autoplay is blocked. */
+.callScreen .resumeAudio{display:inline-flex;align-items:center;justify-content:center;margin:8px auto 0;padding:10px 16px;border-radius:999px;border:1px solid #fff8;background:#fff;color:#24201e;font-size:13px;font-weight:700;box-shadow:0 3px 12px #0003;cursor:pointer}
+.callScreen .resumeAudio.hidden{display:none!important}
