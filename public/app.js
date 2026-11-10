@@ -300,6 +300,7 @@ function setNestView(view){if(!joined)return;nestView=view;show('littleNest',vie
 $('nestTabHome').onclick=()=>setNestView('nest');
 $('nestTabChat').onclick=()=>setNestView('chat');
 $('nestTabCall').onclick=()=>{setNestView('chat');$('audioCall').click()};
+$('nestLeave').onclick=()=>$('leave').click();
 $('nestToChat').onclick=()=>setNestView('chat');
 $('nestToCall').onclick=()=>{setNestView('chat');$('audioCall').click()};
 $('nestDate').value=localStorage.getItem('olw-nest-anniversary')||'';
