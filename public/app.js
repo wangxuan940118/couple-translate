@@ -39,10 +39,54 @@ function sendTyping(){if(!joined)return;const now=Date.now();if(now-lastTypingSe
 $('message').addEventListener('input',sendTyping);
 $('callText').addEventListener('input',sendTyping);
 async function translate(text,from,to){if(from===to)return text;const cacheKey=from+'|'+to+'|'+text; if(translationCache.has(cacheKey))return translationCache.get(cacheKey);const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);try{const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,from,to}),signal:controller.signal});const d=await r.json();if(!r.ok)throw Error(d.error||'翻譯服務暫時無法使用');if(typeof d.translation!=='string'||!d.translation.trim())throw Error('翻譯結果為空');translationCache.set(cacheKey,d.translation);if(translationCache.size>120)translationCache.delete(translationCache.keys().next().value);return d.translation}finally{clearTimeout(timeout)}}
-async function postText(text){text=text.trim();if(!text||!joined)return;appendChat('我',text);send({type:'caption',text,lang});}
+async function postText(text){text=text.trim();if(!text||!joined)return;const bubble=appendChat('我',text);send({type:'caption',text,lang});const target=lang==='zh-TW'?'en':'zh-TW';try{const translated=await translate(text,lang,target);if(translated!==text){const sub=document.createElement('div');sub.className='translation';sub.textContent=translated;bubble.append(sub)}}catch{const sub=document.createElement('div');sub.className='translation';sub.textContent='翻譯暫時無法使用';bubble.append(sub)}}
 async function receiveText(m){const seq=++captionSequence;const bubble=appendChat('寶貝',m.text);notifyIncoming('卡安 ❤️',m.to===lang&&typeof m.translated==='string'&&m.translated.trim()?m.translated:m.text);try{const t=(typeof m.translated==='string'&&m.translated.trim()&&m.to===lang)?m.translated:await translate(m.text,m.lang,lang);if(t!==m.text){const sub=document.createElement('div');sub.className='translation';sub.textContent=t;bubble.append(sub)}}catch{const sub=document.createElement('div');sub.className='translation';sub.textContent='翻譯暫時無法使用';bubble.append(sub)}}
-function showRemoteCaption(original,translated){const el=$('callCaption');if(!el)return;el.replaceChildren();const source=document.createElement('div');source.textContent=original;el.append(source);if(translated){const line=document.createElement('div');line.className='translation';line.textContent=translated;el.append(line)}}
-async function receiveSpeechCaption(m){if(!calling)return;const seq=++remoteCaptionSeq;const text=m.text.trim();if(!text)return;showRemoteCaption(text,m.lang===lang?'':'翻譯中…');if(m.lang===lang)return;try{const translated=await translate(text,m.lang,lang);if(calling&&seq===remoteCaptionSeq){showRemoteCaption(text,translated)}}catch(e){if(calling&&seq===remoteCaptionSeq)showRemoteCaption(text,'翻譯暫時無法使用')}}
+// Bilingual caption feed: each participant transcribes their OWN microphone and
+// shares the transcript. Never label the local microphone as remote speech.
+let callCaptionEpoch=0;
+const captionNodes=new Map();
+function resetCallCaptions(){
+  callCaptionEpoch++;captionNodes.clear();
+  const feed=$('callCaption');feed.replaceChildren();
+  const hint=document.createElement('p');hint.className='captionEmpty';
+  hint.textContent='雙方開啟「語音字幕」後，對話會顯示在這裡';
+  feed.append(hint);
+}
+function captionBubble(id,who,original,translated){
+  const feed=$('callCaption');
+  feed.querySelector('.captionEmpty')?.remove();
+  let bubble=captionNodes.get(id);
+  if(!bubble){
+    bubble=document.createElement('div');bubble.className='captionBubble '+(who==='我'?'captionMine':'captionTheirs');
+    const label=document.createElement('small');label.textContent=who;
+    const source=document.createElement('div');source.className='captionOriginal';
+    const translation=document.createElement('div');translation.className='captionTranslation';
+    bubble.append(label,source,translation);feed.append(bubble);captionNodes.set(id,bubble);
+    if(captionNodes.size>35){const oldest=captionNodes.keys().next().value;captionNodes.get(oldest)?.remove();captionNodes.delete(oldest)}
+  }
+  bubble.querySelector('.captionOriginal').textContent=original;
+  const translationNode=bubble.querySelector('.captionTranslation');
+  translationNode.textContent=translated||'';
+  translationNode.classList.toggle('hidden',!translated);
+  feed.scrollTop=feed.scrollHeight;
+}
+async function addSpeechCaption(text,sourceLang,who,id){
+  if(!calling||!text.trim())return;
+  const epoch=callCaptionEpoch;
+  const target=who==='我'?(sourceLang==='zh-TW'?'en':'zh-TW'):lang;
+  captionBubble(id,who,text,sourceLang===target?'':'翻譯中…');
+  if(sourceLang===target)return;
+  try{
+    const translated=await translate(text,sourceLang,target);
+    if(calling&&epoch===callCaptionEpoch&&captionNodes.has(id))captionBubble(id,who,text,translated);
+  }catch{
+    if(calling&&epoch===callCaptionEpoch&&captionNodes.has(id))captionBubble(id,who,text,'翻譯暫時無法使用');
+  }
+}
+function receiveSpeechCaption(m){
+  if(!calling||typeof m.text!=='string')return;
+  addSpeechCaption(m.text.trim(),m.lang,'對方','remote-'+(++remoteCaptionSeq));
+}
 $('testTranslate').onclick=async()=>{const button=$('testTranslate');const phrase=$('testPhrase').value.trim();if(!phrase)return;$('testResult').textContent='正在翻譯…';button.disabled=true;try{const result=await translate(phrase,lang,$('testTargetSelect').value);$('testResult').textContent='翻譯：'+result}catch(e){$('testResult').textContent='測試失敗：'+(e.name==='AbortError'?'翻譯逾時':safeError(e))}finally{button.disabled=false}};
 $('manual').onsubmit=e=>{e.preventDefault();postText($('message').value);$('message').value=''};
 $('callSend').onclick=()=>{postText($('callText').value);$('callText').value=''};
@@ -54,7 +98,7 @@ case 'joined':joined=true;peerOnline=m.count===2;show('setup',false);show('home'
 case 'peer-joined':peerOnline=true;status('♡ 你們都在線上');break;
 case 'peer-left':peerOnline=false;status('寶貝已離開房間');endCall(false);show('incomingCall',false);break;
 case 'typing':$('typingStatus').textContent='對方正在輸入…';clearTimeout(typingClearTimer);typingClearTimer=setTimeout(()=>$('typingStatus').textContent='',2500);break;
-case 'caption-preview':if(calling&&typeof m.text==='string'){remoteCaptionSeq++;showRemoteCaption(m.text+' …','')}break;
+case 'caption-preview':break; // Do not replace final captions with interim text.
 case 'speech-caption':if(typeof m.text==='string'&&languages.includes(m.lang))receiveSpeechCaption(m);break;
 case 'caption':$('typingStatus').textContent='';if(typeof m.text==='string'&&languages.includes(m.lang))receiveText(m);break;
 case 'call-invite':if(calling||mode){send({type:'call-decline'});break}mode=m.mode==='video'?'video':'audio';$('incomingMode').textContent=mode==='video'?'視訊通話':'語音通話';$('incomingTitle').textContent='寶貝正在呼叫你…';show('incomingCall',true);notifyIncoming('卡安 ❤️','正在呼叫你 · '+(mode==='video'?'視訊通話':'語音通話'));break;
@@ -67,13 +111,13 @@ case 'ice':if(calling&&pc){if(remoteReady)await pc.addIceCandidate(m.candidate).
 case 'error':alert(m.message||'房間連線失敗');if(!joined){socket?.close();show('setup',true);show('home',false)}break;
 }}
 async function flushIce(){for(const c of iceQueue.splice(0))await pc.addIceCandidate(c).catch(()=>{})}
-async function setupCall(which){mode=which;calling=true;remoteReady=false;iceQueue=[];show('call',true);show('home',false);$('filterSelect').value='soft';applyFilter();show('cameraExtras',which==='video');show('incomingCall',false);show('audioBackdrop',which==='audio');show('local',which==='video');$('camera').disabled=which==='audio';$('flip').disabled=which==='audio';callStatus('正在準備通話…');try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:which==='video'?{width:{ideal:640},height:{ideal:360},frameRate:{ideal:15,max:20},facingMode:'user'}:false});$('local').srcObject=stream;pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}],bundlePolicy:'max-bundle'});stream.getTracks().forEach(track=>{const sender=pc.addTrack(track,stream);if(track.kind==='video'){const params=sender.getParameters();if(params.encodings?.length){params.encodings[0].maxBitrate=450000;params.encodings[0].maxFramerate=15;sender.setParameters(params).catch(()=>{})}}});pc.ontrack=e=>{$('remote').srcObject=e.streams[0];callStatus('♡ 通話中')};pc.onicecandidate=e=>{if(e.candidate)send({type:'ice',candidate:e.candidate})};pc.onconnectionstatechange=()=>{if(pc?.connectionState==='connected')callStatus('♡ 通話中');else if(pc&&['failed','disconnected'].includes(pc.connectionState))callStatus('連線不穩，請重試')};connectionWatch=setInterval(async()=>{if(!pc||pc.connectionState!=='connected')return;try{const stats=await pc.getStats();let lost=0,received=0,rtt=null;stats.forEach(s=>{if(s.type==='inbound-rtp'&&s.kind==='audio'){lost+=s.packetsLost||0;received+=s.packetsReceived||0}if(s.type==='candidate-pair'&&s.state==='succeeded'&&s.currentRoundTripTime!=null)rtt=s.currentRoundTripTime});if(received>30&&(lost/(lost+received)>.1||rtt>1))callStatus('網路品質不穩，建議切換 Wi-Fi／行動網路')}catch{}},7000);return true}catch(e){alert('無法使用相機或麥克風：'+safeError(e));endCall(false);return false}}
+async function setupCall(which){mode=which;calling=true;remoteReady=false;iceQueue=[];show('call',true);show('home',false);resetCallCaptions();$('filterSelect').value='soft';applyFilter();show('cameraExtras',which==='video');show('incomingCall',false);show('audioBackdrop',which==='audio');show('local',which==='video');$('camera').disabled=which==='audio';$('flip').disabled=which==='audio';callStatus('正在準備通話…');try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:which==='video'?{width:{ideal:640},height:{ideal:360},frameRate:{ideal:15,max:20},facingMode:'user'}:false});$('local').srcObject=stream;pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}],bundlePolicy:'max-bundle'});stream.getTracks().forEach(track=>{const sender=pc.addTrack(track,stream);if(track.kind==='video'){const params=sender.getParameters();if(params.encodings?.length){params.encodings[0].maxBitrate=450000;params.encodings[0].maxFramerate=15;sender.setParameters(params).catch(()=>{})}}});pc.ontrack=e=>{$('remote').srcObject=e.streams[0];callStatus('♡ 通話中')};pc.onicecandidate=e=>{if(e.candidate)send({type:'ice',candidate:e.candidate})};pc.onconnectionstatechange=()=>{if(pc?.connectionState==='connected')callStatus('♡ 通話中');else if(pc&&['failed','disconnected'].includes(pc.connectionState))callStatus('連線不穩，請重試')};connectionWatch=setInterval(async()=>{if(!pc||pc.connectionState!=='connected')return;try{const stats=await pc.getStats();let lost=0,received=0,rtt=null;stats.forEach(s=>{if(s.type==='inbound-rtp'&&s.kind==='audio'){lost+=s.packetsLost||0;received+=s.packetsReceived||0}if(s.type==='candidate-pair'&&s.state==='succeeded'&&s.currentRoundTripTime!=null)rtt=s.currentRoundTripTime});if(received>30&&(lost/(lost+received)>.1||rtt>1))callStatus('網路品質不穩，建議切換 Wi-Fi／行動網路')}catch{}},7000);return true}catch(e){alert('無法使用相機或麥克風：'+safeError(e));endCall(false);return false}}
 async function makeOffer(){if(!pc)return;await pc.setLocalDescription(await pc.createOffer());send({type:'offer',sdp:pc.localDescription})}
 async function dial(which){if(!joined||!peerOnline){alert('請等寶貝進入同一個房間後再撥打');return}if(calling||mode)return;if(!await setupCall(which))return;callStatus('正在呼叫寶貝…');send({type:'call-invite',mode:which});callTimer=setTimeout(()=>{if(calling&&pc?.connectionState!=='connected'){alert('對方尚未接聽');endCall(true)}},45000)}
 $('audioCall').onclick=()=>dial('audio');$('videoCall').onclick=()=>dial('video');
 $('decline').onclick=()=>{send({type:'call-decline'});mode=null;show('incomingCall',false)};
 $('accept').onclick=async()=>{const which=mode;if(!which)return;if(await setupCall(which)){callStatus('正在接聽…');send({type:'call-accept'})}else send({type:'call-decline'})};
-function endCall(notify=true){remoteCaptionSeq++;clearInterval(connectionWatch);connectionWatch=null;clearTimeout(callTimer);clearTimeout(speechRestartTimer);clearTimeout(previewTimer);previewText='';recognizing=false;$('speechStatus').textContent='點「語音字幕」開始辨識';try{recognition?.stop()}catch{}recognition=null;if(notify&&joined)send({type:'call-end'});pc?.close();pc=null;stream?.getTracks().forEach(t=>t.stop());stream=null;$('local').srcObject=null;$('remote').srcObject=null;calling=false;mode=null;remoteReady=false;iceQueue=[];closePhoto();show('call',false);show('incomingCall',false);show('home',joined);$('mic').querySelector('small').textContent='語音字幕'}
+function endCall(notify=true){callCaptionEpoch++;remoteCaptionSeq++;clearInterval(connectionWatch);connectionWatch=null;clearTimeout(callTimer);clearTimeout(speechRestartTimer);clearTimeout(previewTimer);previewText='';recognizing=false;$('speechStatus').textContent='點「語音字幕」開始辨識';try{recognition?.stop()}catch{}recognition=null;if(notify&&joined)send({type:'call-end'});pc?.close();pc=null;stream?.getTracks().forEach(t=>t.stop());stream=null;$('local').srcObject=null;$('remote').srcObject=null;calling=false;mode=null;remoteReady=false;iceQueue=[];closePhoto();show('call',false);show('incomingCall',false);show('home',joined);$('mic').querySelector('small').textContent='語音字幕'}
 $('hangup').onclick=()=>endCall(true);
 $('leave').onclick=()=>{endCall(true);socket?.close();joined=false;peerOnline=false;show('home',false);show('setup',true)};
 $('mute').onclick=()=>{const t=stream?.getAudioTracks()[0];if(!t)return;t.enabled=!t.enabled;$('mute').querySelector('small').textContent=t.enabled?'靜音':'取消靜音'};
@@ -82,7 +126,7 @@ $('flip').onclick=async()=>{const old=stream?.getVideoTracks()[0];if(!old)return
 function stopRecognition(){recognizing=false;clearTimeout(speechRestartTimer);clearTimeout(previewTimer);previewText='';try{recognition?.stop()}catch{}$('mic').querySelector('small').textContent='語音字幕';$('speechStatus').textContent='語音字幕已停止'}
 $('mic').onclick=()=>{if(recognizing){stopRecognition();return}const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SpeechRecognition){$('speechStatus').textContent='此瀏覽器不支援語音辨識，可使用文字訊息';return}
 recognition=new SpeechRecognition();recognition.lang=lang==='en'?'en-US':lang==='sr'?'sr-RS':lang;recognition.continuous=true;recognition.interimResults=true;
-recognition.onresult=e=>{let interim='';for(let i=e.resultIndex;i<e.results.length;i++){const result=e.results[i];const text=result[0]?.transcript?.trim();if(!text)continue;if(result.isFinal){clearTimeout(previewTimer);previewText='';const now=Date.now();if(text!==lastSpeechText||now-lastSpeechAt>4000){lastSpeechText=text;lastSpeechAt=now;send({type:'speech-caption',text,lang})}}else interim=text}if(interim){$('speechStatus').textContent='正在辨識你的語音…';previewText=interim;const now=Date.now();if(now-lastPreviewAt>1100){lastPreviewAt=now;send({type:'caption-preview',text:interim})}else if(!previewTimer){previewTimer=setTimeout(()=>{previewTimer=null;if(recognizing&&calling&&previewText){lastPreviewAt=Date.now();send({type:'caption-preview',text:previewText})}},1100)}}else $('speechStatus').textContent='正在聆聽，停頓後傳送字幕'};
+recognition.onresult=e=>{let interim='';for(let i=e.resultIndex;i<e.results.length;i++){const result=e.results[i];const text=result[0]?.transcript?.trim();if(!text)continue;if(result.isFinal){clearTimeout(previewTimer);previewText='';const now=Date.now();if(text!==lastSpeechText||now-lastSpeechAt>4000){lastSpeechText=text;lastSpeechAt=now;addSpeechCaption(text,lang,'我','local-'+now);send({type:'speech-caption',text,lang})}}else interim=text}if(interim){$('speechStatus').textContent='正在辨識你的語音…';previewText=interim;const now=Date.now();if(now-lastPreviewAt>1100){lastPreviewAt=now;send({type:'caption-preview',text:interim})}else if(!previewTimer){previewTimer=setTimeout(()=>{previewTimer=null;if(recognizing&&calling&&previewText){lastPreviewAt=Date.now();send({type:'caption-preview',text:previewText})}},1100)}}else $('speechStatus').textContent='正在聆聽，停頓後傳送字幕'};
 recognition.onend=()=>{if(recognizing&&calling){clearTimeout(speechRestartTimer);speechRestartTimer=setTimeout(()=>{if(recognizing&&calling){try{recognition.start()}catch(e){$('speechStatus').textContent='辨識暫停，請重新開啟'}}},500)}};
 recognition.onerror=e=>{if(['not-allowed','service-not-allowed','audio-capture','language-not-supported'].includes(e.error)){stopRecognition();$('speechStatus').textContent='語音辨識不可用：'+e.error}else if(e.error!=='no-speech')$('speechStatus').textContent='辨識暫停：'+e.error};
 try{recognizing=true;recognition.start();$('mic').querySelector('small').textContent='停止字幕';$('speechStatus').textContent='正在聆聽，停頓後傳送字幕'}catch(e){stopRecognition();$('speechStatus').textContent='無法啟動辨識：'+safeError(e)}};
