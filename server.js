@@ -19,6 +19,7 @@ setInterval(()=>{const now=Date.now();for(const[k,v]of hits)if(!v.some(t=>now-t<
 const mime={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.webmanifest':'application/manifest+json; charset=utf-8','.svg':'image/svg+xml'};
 const server=http.createServer(async(req,res)=>{
  const u=new URL(req.url,'http://localhost');
+ if(u.pathname==='/api/auth-config'){const base=String(process.env.SUPABASE_URL||'').trim();const key=String(process.env.SUPABASE_PUBLISHABLE_KEY||'').trim();const valid=/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(base)&&Boolean(key);return json(res,200,{enabled:valid,url:valid?base:null,publishableKey:valid?key:null})}
  if(u.pathname==='/api/push/key'){return json(res,200,{enabled:vapidReady,publicKey:vapidReady?process.env.VAPID_PUBLIC_KEY:null,persistent:false})}
  if(u.pathname==='/api/push/subscribe'&&req.method==='POST'){
   if(limited(req))return json(res,429,{error:'Too many requests'});
