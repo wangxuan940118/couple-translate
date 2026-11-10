@@ -140,3 +140,18 @@ body:has(#home:not(.hidden)) #siteHeader{display:none!important}
 /* iOS Safari: visible user gesture when remote media autoplay is blocked. */
 .callScreen .resumeAudio{display:inline-flex;align-items:center;justify-content:center;margin:8px auto 0;padding:10px 16px;border-radius:999px;border:1px solid #fff8;background:#fff;color:#24201e;font-size:13px;font-weight:700;box-shadow:0 3px 12px #0003;cursor:pointer}
 .callScreen .resumeAudio.hidden{display:none!important}
+
+/* One-row mobile composer: call shortcuts, compact message field, send. */
+#home .composer{display:flex;align-items:center;gap:6px;margin-top:9px;min-width:0}
+#home .composer .callActions{display:flex;flex:0 0 auto;gap:5px;margin:0}
+#home .composer .callAction{display:grid;place-items:center;width:38px;height:40px;min-width:38px;padding:0;border-radius:12px;line-height:1}
+#home .composer .callAction span{display:block;font-size:19px;line-height:1;margin:0}
+#home .composer input{flex:1 1 0;min-width:0;width:0;min-height:40px;height:40px;padding:8px 10px;border-radius:12px;font-size:14px}
+#home .composer button.primary{flex:0 0 auto;min-height:40px;height:40px;padding:8px 11px;border-radius:12px;font-size:12px;white-space:nowrap}
+@media(max-width:380px){
+ #home .composer{gap:4px}
+ #home .composer .callActions{gap:3px}
+ #home .composer .callAction{width:34px;min-width:34px;height:38px}
+ #home .composer input{height:38px;min-height:38px;padding:7px 8px}
+ #home .composer button.primary{height:38px;min-height:38px;padding:7px 8px}
+}
