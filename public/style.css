@@ -11,3 +11,13 @@
 #setup>select{display:block;width:100%;min-height:50px;background:#242424;color:#f3f0ef;border:1px solid #61565a;border-radius:14px;padding:12px 14px;font:inherit;appearance:auto}#setup>select:focus-visible{outline:2px solid #f3f0ef;outline-offset:2px}
 
 .chatTools{display:flex;align-items:center;gap:12px;margin:8px 0 12px}.chatTools input{flex:1;min-width:0;padding:11px 13px;background:#242424;border:1px solid #49353d}.chatTools span{white-space:nowrap;font-size:12px}
+
+/* Private couple wallpapers: each person sees their partner. */
+.loveIntro{text-align:center;padding:8px 0 20px}.loveIntro h2{font:normal clamp(23px,5vw,32px) Georgia,serif;margin:8px 0;color:#ffe4ed}.loveIntro p{font-size:13px;line-height:1.9;color:#d7c3cf}.loveHearts{color:#e6a8c2;letter-spacing:12px;font-size:22px;animation:loveFloat 4s ease-in-out infinite}@keyframes loveFloat{50%{transform:translateY(-5px);opacity:.75}}
+.chatlog{position:relative;isolation:isolate;background:#201a23!important;}
+.chatlog:before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background-repeat:no-repeat;background-position:center;background-size:contain;opacity:.26}
+.chatlog[data-wallpaper="kaan"]:before{background-image:url('/wallpaper-kaan.svg')}
+.chatlog[data-wallpaper="her"]:before{background-image:url('/wallpaper-her.svg')}
+.chatlog .bubble{background:#29212de8;border:1px solid #ffffff21;backdrop-filter:blur(5px)}
+.chatlog .bubble.mine{background:#eee2e9ee;color:#241c25}
+@media(prefers-reduced-motion:reduce){.loveHearts{animation:none}}
