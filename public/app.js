@@ -159,8 +159,32 @@ async function addSpeechCaption(text,sourceLang,who,id){
     if(calling&&epoch===callCaptionEpoch&&captionNodes.has(id))captionBubble(id,who,text,'翻譯暫時無法使用');
   }
 }
+const previewVersion={local:0,remote:0};
+function clearSpeechPreview(side){
+  previewVersion[side]++;
+  const id=side+'-preview';
+  captionNodes.get(id)?.remove();
+  captionNodes.delete(id);
+}
+async function updateSpeechPreview(side,text,sourceLang){
+  if(!calling||!text.trim())return;
+  const id=side+'-preview',who=side==='local'?'我':'對方';
+  const target=side==='local'?(sourceLang==='zh-TW'?'en':'zh-TW'):lang;
+  const epoch=callCaptionEpoch,version=++previewVersion[side];
+  captionBubble(id,who,text+' …',sourceLang===target?'':'翻譯中…');
+  if(sourceLang===target)return;
+  try{
+    const translated=await translate(text,sourceLang,target);
+    if(calling&&epoch===callCaptionEpoch&&version===previewVersion[side]&&captionNodes.has(id))
+      captionBubble(id,who,text+' …',translated);
+  }catch{
+    if(calling&&epoch===callCaptionEpoch&&version===previewVersion[side]&&captionNodes.has(id))
+      captionBubble(id,who,text+' …','翻譯暫時無法使用');
+  }
+}
 function receiveSpeechCaption(m){
   if(!calling||typeof m.text!=='string')return;
+  clearSpeechPreview('remote');
   addSpeechCaption(m.text.trim(),m.lang,'對方','remote-'+(++remoteCaptionSeq));
 }
 $('testTranslate').onclick=async()=>{const button=$('testTranslate');const phrase=$('testPhrase').value.trim();if(!phrase)return;$('testResult').textContent='正在翻譯…';button.disabled=true;try{const result=await translate(phrase,lang,$('testTargetSelect').value);$('testResult').textContent='翻譯：'+result}catch(e){$('testResult').textContent='測試失敗：'+(e.name==='AbortError'?'翻譯逾時':safeError(e))}finally{button.disabled=false}};
@@ -174,7 +198,7 @@ case 'joined':joined=true;peerOnline=m.count===2;show('setup',false);show('home'
 case 'peer-joined':peerOnline=true;status('♡ 你們都在線上');break;
 case 'peer-left':peerOnline=false;for(const id of pendingMessages.keys())deliveryState(id,'failed');status('寶貝已離開房間');endCall(false);show('incomingCall',false);break;
 case 'typing':$('typingStatus').textContent='對方正在輸入…';clearTimeout(typingClearTimer);typingClearTimer=setTimeout(()=>$('typingStatus').textContent='',2500);break;
-case 'caption-preview':break; // Do not replace final captions with interim text.
+case 'caption-preview':if(calling&&typeof m.text==='string'&&languages.includes(m.lang))updateSpeechPreview('remote',m.text.trim(),m.lang);break;
 case 'speech-caption':if(typeof m.text==='string'&&languages.includes(m.lang))receiveSpeechCaption(m);break;
 case 'caption-received':if(typeof m.id==='string')deliveryState(m.id,'delivered');break;
 case 'caption-undelivered':if(typeof m.id==='string')deliveryState(m.id,'failed');break;
@@ -195,7 +219,7 @@ async function dial(which){if(!joined||!peerOnline){alert('請等寶貝進入同
 $('audioCall').onclick=()=>dial('audio');$('videoCall').onclick=()=>dial('video');
 $('decline').onclick=()=>{send({type:'call-decline'});mode=null;show('incomingCall',false)};
 $('accept').onclick=async()=>{const which=mode;if(!which)return;if(await setupCall(which)){callStatus('正在接聽…');send({type:'call-accept'})}else send({type:'call-decline'})};
-function endCall(notify=true){callCaptionEpoch++;remoteCaptionSeq++;clearInterval(connectionWatch);connectionWatch=null;clearTimeout(callTimer);clearTimeout(speechRestartTimer);clearTimeout(previewTimer);previewText='';recognizing=false;$('speechStatus').textContent='點「語音字幕」開始辨識';try{recognition?.stop()}catch{}recognition=null;if(notify&&joined)send({type:'call-end'});pc?.close();pc=null;stream?.getTracks().forEach(t=>t.stop());stream=null;$('local').srcObject=null;$('remote').srcObject=null;calling=false;mode=null;remoteReady=false;iceQueue=[];closePhoto();show('call',false);show('incomingCall',false);show('home',joined);$('mic').querySelector('small').textContent='語音字幕'}
+function endCall(notify=true){callCaptionEpoch++;remoteCaptionSeq++;clearInterval(connectionWatch);connectionWatch=null;clearTimeout(callTimer);clearTimeout(speechRestartTimer);clearTimeout(previewTimer);previewText='';clearSpeechPreview('local');clearSpeechPreview('remote');recognizing=false;$('speechStatus').textContent='點「語音字幕」開始辨識';try{recognition?.stop()}catch{}recognition=null;if(notify&&joined)send({type:'call-end'});pc?.close();pc=null;stream?.getTracks().forEach(t=>t.stop());stream=null;$('local').srcObject=null;$('remote').srcObject=null;calling=false;mode=null;remoteReady=false;iceQueue=[];closePhoto();show('call',false);show('incomingCall',false);show('home',joined);$('mic').querySelector('small').textContent='語音字幕'}
 $('hangup').onclick=()=>endCall(true);
 $('leave').onclick=()=>{endCall(true);socket?.close();joined=false;peerOnline=false;show('home',false);show('setup',true)};
 $('mute').onclick=()=>{const t=stream?.getAudioTracks()[0];if(!t)return;t.enabled=!t.enabled;$('mute').querySelector('small').textContent=t.enabled?'靜音':'取消靜音'};
@@ -204,7 +228,7 @@ $('flip').onclick=async()=>{const old=stream?.getVideoTracks()[0];if(!old)return
 function stopRecognition(){recognizing=false;clearTimeout(speechRestartTimer);clearTimeout(previewTimer);previewText='';try{recognition?.stop()}catch{}$('mic').querySelector('small').textContent='語音字幕';$('speechStatus').textContent='語音字幕已停止'}
 $('mic').onclick=()=>{if(recognizing){stopRecognition();return}const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SpeechRecognition){$('speechStatus').textContent='此瀏覽器不支援語音辨識，可使用文字訊息';return}
 recognition=new SpeechRecognition();recognition.lang=lang==='en'?'en-US':lang==='sr'?'sr-RS':lang;recognition.continuous=true;recognition.interimResults=true;
-recognition.onresult=e=>{let interim='';for(let i=e.resultIndex;i<e.results.length;i++){const result=e.results[i];const text=result[0]?.transcript?.trim();if(!text)continue;if(result.isFinal){clearTimeout(previewTimer);previewText='';const now=Date.now();if(text!==lastSpeechText||now-lastSpeechAt>4000){lastSpeechText=text;lastSpeechAt=now;addSpeechCaption(text,lang,'我','local-'+now);send({type:'speech-caption',text,lang})}}else interim=text}if(interim){$('speechStatus').textContent='正在辨識你的語音…';previewText=interim;const now=Date.now();if(now-lastPreviewAt>1100){lastPreviewAt=now;send({type:'caption-preview',text:interim})}else if(!previewTimer){previewTimer=setTimeout(()=>{previewTimer=null;if(recognizing&&calling&&previewText){lastPreviewAt=Date.now();send({type:'caption-preview',text:previewText})}},1100)}}else $('speechStatus').textContent='正在聆聽，停頓後傳送字幕'};
+recognition.onresult=e=>{let interim='';for(let i=e.resultIndex;i<e.results.length;i++){const result=e.results[i];const text=result[0]?.transcript?.trim();if(!text)continue;if(result.isFinal){clearTimeout(previewTimer);previewText='';const now=Date.now();if(text!==lastSpeechText||now-lastSpeechAt>4000){lastSpeechText=text;lastSpeechAt=now;clearSpeechPreview('local');addSpeechCaption(text,lang,'我','local-'+now);send({type:'speech-caption',text,lang})}}else interim=text}if(interim){$('speechStatus').textContent='正在辨識你的語音…';previewText=interim;const now=Date.now();if(now-lastPreviewAt>1100){lastPreviewAt=now;updateSpeechPreview('local',interim,lang);send({type:'caption-preview',text:interim,lang})}else if(!previewTimer){previewTimer=setTimeout(()=>{previewTimer=null;if(recognizing&&calling&&previewText){lastPreviewAt=Date.now();updateSpeechPreview('local',previewText,lang);send({type:'caption-preview',text:previewText,lang})}},1100)}}else $('speechStatus').textContent='正在聆聽，停頓後傳送字幕'};
 recognition.onend=()=>{if(recognizing&&calling){clearTimeout(speechRestartTimer);speechRestartTimer=setTimeout(()=>{if(recognizing&&calling){try{recognition.start()}catch(e){$('speechStatus').textContent='辨識暫停，請重新開啟'}}},500)}};
 recognition.onerror=e=>{if(['not-allowed','service-not-allowed','audio-capture','language-not-supported'].includes(e.error)){stopRecognition();$('speechStatus').textContent='語音辨識不可用：'+e.error}else if(e.error!=='no-speech')$('speechStatus').textContent='辨識暫停：'+e.error};
 try{recognizing=true;recognition.start();$('mic').querySelector('small').textContent='停止字幕';$('speechStatus').textContent='正在聆聽，停頓後傳送字幕'}catch(e){stopRecognition();$('speechStatus').textContent='無法啟動辨識：'+safeError(e)}};
