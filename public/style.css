@@ -21,11 +21,12 @@
 @media(prefers-reduced-motion:reduce){.loveHearts{animation:none}}
 
 /* Minimal white / black couple identity selector */
-.profileLabel{text-align:center;font-size:13px;color:#dfd4dc;margin:15px 0 10px}
 .heartChoices{display:flex;justify-content:center;gap:28px;margin:8px auto 0}
 .heartChoice{font-size:51px;line-height:1;width:96px;height:96px;display:grid;place-items:center;border-radius:24px;transition:transform .16s,border-color .16s,box-shadow .16s}
 .heartChoice.whiteHeart{color:#fff;background:#363038;border:2px solid #ffffff65;text-shadow:0 2px 10px #0004}
 .heartChoice.blackHeart{color:#08080a;background:#e3dce1;border:2px solid #a39aa5}
 .heartChoice.active{transform:translateY(-3px);border-color:#f2c4dc;box-shadow:0 0 0 3px #edbad044,0 10px 30px #0005}
-.heartHint{text-align:center;margin:9px 0 20px}
 .chatlog:before{background-image:none!important}
+
+
+.heartChoices{margin:8px auto 20px}.heartChoice:focus-visible{outline:2px solid #f2c4dc;outline-offset:5px}@media(prefers-reduced-motion:reduce){.heartChoice{transition:none}}
