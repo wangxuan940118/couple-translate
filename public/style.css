@@ -202,3 +202,13 @@ body:has(.nestNav:not(.hidden)) .app{padding-bottom:95px}
 .callScreen:has(#audioBackdrop:not(.hidden)) .audioBackdrop .avatar{width:108px;height:108px}
 .callScreen:has(#audioBackdrop:not(.hidden)) .audioBackdrop h2{margin:12px 0 4px}
 @media(max-height:720px){.callScreen .captionFeed{top:calc(82px + env(safe-area-inset-top));bottom:calc(217px + env(safe-area-inset-bottom))}.callScreen:has(#audioBackdrop:not(.hidden)) .captionFeed{top:calc(36% + env(safe-area-inset-top) * .2)}}
+
+/* Phase 1: clean monochrome chat, without changing the cover, nest, or video styling. */
+#home .chatlog{background:#fff!important;border:1px solid #d6d6d6!important;color:#171717;min-height:330px;height:clamp(330px,54svh,620px);padding:16px}
+#home .chatlog[data-wallpaper],#home .chatlog[data-wallpaper]::before{background-image:none!important}
+#home .chatlog .bubble,#home .chatlog[data-wallpaper] .bubble{background:#fff!important;color:#171717!important;border:1px solid #c8c8c8!important;box-shadow:none;backdrop-filter:none}
+#home .chatlog .bubble.mine{background:#f1f1f1!important;border-color:#d1d1d1!important;color:#111!important}
+#home .chatlog .bubble .translation{color:#383838}
+#home .chatlog .empty{color:#777}
+#home .composer input{background:#fff;color:#171717;border:1px solid #c8c8c8}
+@media(max-width:500px){#home .chatlog{min-height:310px;height:clamp(310px,53svh,590px)}}
