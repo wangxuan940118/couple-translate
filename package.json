@@ -3,13 +3,19 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "check": "node --check server.js && node --check lib/private-store.js && node --check public/app.js && node --check public/email-auth.js && node --check public/private-history.js && node --check scripts/render-deploy.mjs",
+    "test": "node --test --test-isolation=none test/*.test.js test/*.test.mjs"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "ws": "^8.18.0",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
+    "linkedom": "^0.18.15"
   }
 }

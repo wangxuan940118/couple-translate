@@ -1,6 +1,23 @@
--- Our Little World: proposed Supabase schema. Run only after configuring Auth.
--- Private conversations require membership checks; never expose service_role keys.
-create extension if not exists pgcrypto;
+-- Our Little World canonical public schema, migration 001.
+-- Apply preflight.sql FIRST, then this file and private-foundation.sql as an admin.
+-- This migration preserves existing rows and does not touch the olw_private schema.
+begin;
+do $$
+declare v record; v_type text;
+begin
+ for v in select * from (values
+  ('rooms','id','uuid'),('rooms','name','text'),('rooms','created_by','uuid'),('rooms','created_at','timestamptz'),
+  ('room_members','room_id','uuid'),('room_members','user_id','uuid'),('room_members','joined_at','timestamptz'),
+  ('messages','id','uuid'),('messages','room_id','uuid'),('messages','sender_id','uuid'),('messages','kind','text'),
+  ('messages','body','text'),('messages','attachment_path','text'),('messages','reply_to','uuid'),
+  ('messages','deleted_at','timestamptz'),('messages','created_at','timestamptz')
+ ) as expected(tbl,col,typ) loop
+  if to_regclass('public.'||v.tbl) is not null then
+   select udt_name into v_type from information_schema.columns where table_schema='public' and table_name=v.tbl and column_name=v.col;
+   if v_type is distinct from v.typ then raise exception 'OLW_SCHEMA_INCOMPATIBLE: public.%.% must be %; review a separate migration',v.tbl,v.col,v.typ; end if;
+  end if;
+ end loop;
+end $$;
 create table if not exists public.rooms (
  id uuid primary key default gen_random_uuid(),
  name text not null default 'Our Little World',
@@ -23,6 +40,8 @@ create table if not exists public.messages (
  reply_to uuid references public.messages(id) on delete set null,
  deleted_at timestamptz,
  created_at timestamptz not null default now(),
+ source_lang text,
+ device_id text,
  check(body is not null or attachment_path is not null)
 );
 create index if not exists messages_room_created_idx on public.messages(room_id,created_at desc);
@@ -54,6 +73,21 @@ alter table public.messages enable row level security;
 alter table public.message_reads enable row level security;
 alter table public.message_reactions enable row level security;
 alter table public.push_subscriptions enable row level security;
+drop policy if exists rooms_read on public.rooms;
+drop policy if exists rooms_create on public.rooms;
+drop policy if exists members_read on public.room_members;
+drop policy if exists messages_read on public.messages;
+drop policy if exists messages_write on public.messages;
+drop policy if exists messages_soft_delete on public.messages;
+drop policy if exists reads_read on public.message_reads;
+drop policy if exists reads_write on public.message_reads;
+drop policy if exists reactions_read on public.message_reactions;
+drop policy if exists reactions_write on public.message_reactions;
+drop policy if exists reactions_remove on public.message_reactions;
+drop policy if exists push_self_read on public.push_subscriptions;
+drop policy if exists push_self_insert on public.push_subscriptions;
+drop policy if exists push_self_update on public.push_subscriptions;
+drop policy if exists push_self_delete on public.push_subscriptions;
 create policy rooms_read on public.rooms for select to authenticated using(public.is_room_member(id));
 create policy rooms_create on public.rooms for insert to authenticated with check(created_by=(select auth.uid()));
 create policy members_read on public.room_members for select to authenticated using(public.is_room_member(room_id));
@@ -71,3 +105,4 @@ create policy push_self_update on public.push_subscriptions for update to authen
 create policy push_self_delete on public.push_subscriptions for delete to authenticated using(user_id=(select auth.uid()));
 -- Membership invitation must be implemented via verified server-side function.
 -- Never add an unrestricted room_members INSERT policy.
+commit;
