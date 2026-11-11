@@ -60,6 +60,27 @@
    session=normalize(value);persist();await verify();return currentUser;
   }catch(error){if(ticket===epoch){if(error.status===400||error.status===401||error.status===403){session=null;persist()}currentUser=null;setState('signed-out',safeFailure(error))}throw error}
  }
+
+ async function sendOtp(email){
+  await ready();if(!config?.configured)throw new AuthError('私人登入尚未設定。');
+  if(typeof email!=='string'||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.trim()))throw new AuthError('請輸入有效的 Email。',400);
+  setState('signing-in','正在寄送驗證碼…');
+  try{
+   // shouldCreateUser:false prevents an arbitrary email from registering a new account.
+   await authRequest('otp',{email:email.trim(),create_user:false});
+   setState('signed-out','如果這個 Email 已獲授權，請查看信箱中的驗證碼。');
+  }catch(error){setState('signed-out',safeFailure(error));throw error}
+ }
+ async function verifyOtp(email,token){
+  await ready();if(!config?.configured)throw new AuthError('私人登入尚未設定。');
+  if(typeof email!=='string'||typeof token!=='string'||!/^[0-9]{8}$/.test(token.trim()))throw new AuthError('請輸入 8 位數驗證碼。',400);
+  const ticket=++epoch;currentUser=null;session=null;refreshJob=null;persist();setState('signing-in','正在驗證…');
+  try{
+   const value=await authRequest('verify',{email:email.trim(),token:token.trim(),type:'email'});
+   if(ticket!==epoch)return null;
+   session=normalize(value);persist();await verify();return currentUser;
+  }catch(error){if(ticket===epoch){session=null;persist();currentUser=null;setState('signed-out',safeFailure(error))}throw error}
+ }
  async function signOut(){
   const token=session?.access_token;clearSession('已登出。伺服器上的聊天紀錄會保留。');
   if(token&&config?.configured)try{await request(config.url+'/auth/v1/logout?scope=local',{method:'POST',headers:{apikey:config.anonKey,Authorization:'Bearer '+token}})}catch{}
@@ -67,9 +88,10 @@
  async function accessToken(){await ready();if(!config?.configured||!session)return null;if(!currentUser)return verify();if(session.expires_at<=Date.now()/1000+60){await refresh();if(!session)return null;return verify()}return session.access_token}
  function subscribe(listener){listeners.add(listener);listener(snapshot());return ()=>listeners.delete(listener)}
  function render(value){const status=document.getElementById('authStatus'),form=document.getElementById('authForm'),signInButton=document.getElementById('authSignIn'),signOutButton=document.getElementById('authSignOut');if(status)status.textContent=value.message;if(form)form.classList.toggle('hidden',Boolean(value.user));if(signInButton)signInButton.disabled=value.status==='loading'||value.status==='signing-in'||value.status==='not-configured';if(signOutButton)signOutButton.classList.toggle('hidden',!value.user)}
- const form=document.getElementById('authForm');if(form)form.addEventListener('submit',async event=>{event.preventDefault();const input=document.getElementById('authPassword');try{await signIn(document.getElementById('authEmail').value,input.value)}catch{}finally{input.value=''}});
+ const form=document.getElementById('authForm');if(form)form.addEventListener('submit',async event=>{event.preventDefault();try{await sendOtp(document.getElementById('authEmail').value);document.getElementById('authOtpForm')?.classList.remove('hidden')}catch{}});
+ const otpForm=document.getElementById('authOtpForm');if(otpForm)otpForm.addEventListener('submit',async event=>{event.preventDefault();const input=document.getElementById('authOtpCode');try{await verifyOtp(document.getElementById('authEmail').value,input.value)}catch{}finally{input.value=''}});
  document.getElementById('authSignOut')?.addEventListener('click',()=>{void signOut()});
  window.addEventListener('storage',event=>{if(event.key!==STORAGE_KEY||!config?.configured)return;++epoch;refreshJob=null;currentUser=null;const stored=savedSession();session=validSession(stored)?stored:null;if(!session)setState('signed-out','已在其他分頁登出。');else void verify().catch(()=>{})});
- window.WorldAuth={ready,signIn,signOut,accessToken,user:()=>currentUser?{...currentUser}:null,subscribe};
+ window.WorldAuth={ready,signIn,sendOtp,verifyOtp,signOut,accessToken,user:()=>currentUser?{...currentUser}:null,subscribe};
  void ready();
 })();
