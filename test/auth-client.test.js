@@ -61,3 +61,23 @@ test('a saved session from another Supabase project is never transmitted',async(
 test('logout in another tab immediately removes authenticated UI state',async()=>{
  const f=fixture();await f.auth.ready();await f.auth.signIn(user.email,'password');f.values.delete('olw-auth-session');f.events.get('storage')({key:'olw-auth-session'});assert.equal(f.auth.user(),null);assert.equal(f.document.getElementById('authForm').classList.contains('hidden'),false);assert.equal(await f.auth.accessToken(),null);
 });
+
+
+test('email OTP request does not register users and verification restores authenticated session',async()=>{
+ const f=fixture();await f.auth.ready();
+ await f.auth.sendOtp('  private@example.test  ');
+ const sent=f.requests.find(r=>r.url.endsWith('/auth/v1/otp'));
+ assert(sent);assert.equal(JSON.parse(sent.options.body).email,user.email);
+ assert.equal(JSON.parse(sent.options.body).create_user,false);
+ assert.equal(f.auth.user(),null);
+ await f.auth.verifyOtp(user.email,'12345678');
+ const verified=f.requests.find(r=>r.url.endsWith('/auth/v1/verify'));
+ assert.deepEqual(JSON.parse(verified.options.body),{email:user.email,token:'12345678',type:'email'});
+ assert.equal(f.auth.user().id,user.id);
+ assert.equal(f.document.getElementById('authForm').classList.contains('hidden'),true);
+});
+test('email OTP rejects non-eight-digit codes before calling verification endpoint',async()=>{
+ const f=fixture();await f.auth.ready();
+ await assert.rejects(f.auth.verifyOtp(user.email,'123456'),/8 位數/);
+ assert.equal(f.requests.some(r=>r.url.endsWith('/auth/v1/verify')),false);
+});
