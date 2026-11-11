@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "check": "node --check server.js && node --check public/app.js",
+    "test": "node --test --test-isolation=none test/*.test.js test/*.test.cjs"
   },
   "engines": {
     "node": ">=20"
@@ -11,5 +13,8 @@
   "dependencies": {
     "ws": "^8.18.0",
     "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "linkedom": "^0.18.15"
   }
 }

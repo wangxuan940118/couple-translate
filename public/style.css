@@ -190,3 +190,89 @@ body:has(.nestNav:not(.hidden)) .app{padding-bottom:95px}
 #nestLeave{color:#694b45!important;background:#fffaf3!important;border:1px solid #d7c5b6!important;font-weight:600!important;opacity:1!important}
 #home .chatlog[data-wallpaper]::before{background-position:center 38%!important;background-size:contain!important}
 @media(max-width:520px){.nestArtwork{max-width:340px;margin:10px auto}.nestArtwork img{max-height:310px}.nestPage{padding:16px 12px 22px}#home .chatlog[data-wallpaper]::before{background-position:center 35%!important}}
+
+/* Spacious two-way live captions: preserve the existing call appearance. */
+.callScreen .captionFeed{left:12px;right:12px;top:calc(105px + env(safe-area-inset-top));bottom:calc(235px + env(safe-area-inset-bottom));padding:16px;gap:14px;background:#111827dc}
+.callScreen .captionBubble{max-width:96%;padding:14px 16px}
+.callScreen .captionOriginal{font-size:clamp(18px,4.5vw,23px);line-height:1.5}
+.callScreen .captionTranslation{font-size:clamp(17px,4.1vw,21px);line-height:1.5}
+.callScreen .translationOptions{bottom:calc(198px + env(safe-area-inset-bottom))}
+.callScreen:has(#audioBackdrop:not(.hidden)) .captionFeed{top:calc(43% + env(safe-area-inset-top) * .25);bottom:calc(202px + env(safe-area-inset-bottom));background:#202124ed}
+.callScreen:has(#audioBackdrop:not(.hidden)) .audioBackdrop{justify-content:flex-start;padding-top:calc(105px + env(safe-area-inset-top))}
+.callScreen:has(#audioBackdrop:not(.hidden)) .audioBackdrop .avatar{width:108px;height:108px}
+.callScreen:has(#audioBackdrop:not(.hidden)) .audioBackdrop h2{margin:12px 0 4px}
+@media(max-height:720px){.callScreen .captionFeed{top:calc(82px + env(safe-area-inset-top));bottom:calc(217px + env(safe-area-inset-bottom))}.callScreen:has(#audioBackdrop:not(.hidden)) .captionFeed{top:calc(36% + env(safe-area-inset-top) * .2)}}
+
+/* Phase 1: readable chat surfaces; approved artwork stays unchanged. */
+#home .chatlog{background:#fff!important;border:1px solid #d6d6d6!important;color:#171717;min-height:330px;height:clamp(330px,54svh,620px);padding:16px}
+
+/* The legacy girl SVG is not approved artwork: keep a plain cream background. */
+#home .chatlog[data-wallpaper="her"],#home .chatlog[data-wallpaper="her"]::before{background-image:none!important;background-color:#faf8f5!important}
+
+#home .chatlog .bubble,#home .chatlog[data-wallpaper] .bubble{background:#fff!important;color:#171717!important;border:1px solid #c8c8c8!important;box-shadow:none;backdrop-filter:none}
+#home .chatlog .bubble.mine{background:#f1f1f1!important;border-color:#d1d1d1!important;color:#111!important}
+#home .chatlog .bubble .translation{color:#383838}
+#home .chatlog .empty{color:#777}
+#home .composer input{background:#fff;color:#171717;border:1px solid #c8c8c8}
+@media(max-width:500px){#home .chatlog{min-height:310px;height:clamp(310px,53svh,590px)}}
+
+/* Cream call layout: original audio, readable captions, existing artwork unchanged. */
+:root{color-scheme:light;--paper:#faf8f5;--surface:#fff;--soft:#f1efed;--ink:#24211f;--muted:#655f59;--line:#d8d1ca;--accent:#765b68;--danger:#b73540;background:var(--paper);color:var(--ink)}
+body{background:var(--paper);color:var(--ink);min-height:100vh;min-height:100dvh}
+button,input,select,textarea{min-height:44px}
+button{color:var(--ink);background:var(--soft);border-color:var(--line);line-height:1.4}
+input,select,textarea{color:var(--ink);background:var(--surface);font-size:16px}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.app{padding-top:max(20px,env(safe-area-inset-top));padding-bottom:max(20px,env(safe-area-inset-bottom))}
+.eyebrow,.hint,.homebar small,.empty{color:var(--muted)}
+#setup .profileLabel{display:none}
+.heartChoice[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:3px}
+#home .composer .callAction,#home .composer button.primary,#home .composer input{height:auto;min-height:44px}
+#home .composer .callAction{width:44px;min-width:44px}
+#home .chatlog{overflow-y:auto}
+.incoming{background:var(--paper);color:var(--ink)}
+.incoming p{color:var(--muted)}
+.incomingIcon,.avatar{background:#eee6e5;color:#765b68}
+.incoming .danger,.callScreen .hangup{background:var(--danger)!important;color:#fff!important;border-color:var(--danger)!important}
+.incoming .accept{background:#286b4d;color:#fff;border-color:#286b4d}
+.callScreen{height:100vh;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr) auto auto auto auto;gap:8px;padding:calc(10px + env(safe-area-inset-top)) 12px calc(10px + env(safe-area-inset-bottom));background:var(--paper);color:var(--ink);overflow:hidden}
+.callScreen #remote{position:absolute;inset:0;z-index:0;height:100%;width:100%;background:#dedbd7;object-fit:cover}
+.callScreen #local{z-index:2;top:calc(78px + env(safe-area-inset-top));right:12px;width:min(25vw,124px);height:min(26vw,150px);border:2px solid #fff;border-radius:13px}
+.callScreen .callTop{position:relative;inset:auto;z-index:3;grid-row:1;padding:9px 12px;background:#fffaf2ed;color:var(--ink);border:1px solid #d8d1ca;border-radius:14px;text-shadow:none}
+.callScreen .callTop .eyebrow{color:#65544d;letter-spacing:.14em;font-size:10px}
+.callScreen .callTop #callStatus{margin-top:5px;font-size:14px;line-height:1.5}
+.callScreen .audioBackdrop{z-index:0;align-items:center;justify-content:flex-start;padding-top:calc(100px + env(safe-area-inset-top));background:var(--paper);color:var(--ink)}
+.callScreen .audioBackdrop .avatar{width:48px;height:48px;font-size:34px;margin:0}
+.callScreen .audioBackdrop h2{font-size:18px;margin:6px 0 0}
+.callScreen .audioBackdrop p{margin:5px 0;font-size:13px;color:var(--muted)}
+.callScreen .captionFeed,.callScreen:has(#audioBackdrop:not(.hidden)) .captionFeed{position:relative;inset:auto;grid-row:2;align-self:end;z-index:3;min-height:80px;max-height:min(34dvh,310px);margin:0;padding:10px;gap:10px;background:#fffaf4f0;border:1px solid #d8d1ca;border-radius:16px;color:var(--ink);text-shadow:none;overflow-y:auto;overscroll-behavior:contain}
+.callScreen:has(#audioBackdrop:not(.hidden)) .captionFeed{align-self:stretch;max-height:none;margin-top:105px;background:#fffdf9}
+.callScreen .captionEmpty{font-size:15px;line-height:1.6;color:var(--muted)}
+.callScreen .captionBubble{max-width:90%;padding:11px 13px;box-shadow:none;background:#fff;border:1px solid #d8d1ca;border-radius:14px 14px 14px 4px;color:var(--ink);flex-shrink:0}
+.callScreen .captionBubble.captionMine{background:#f1eeea;border-color:#cfc6bc;border-radius:14px 14px 4px 14px}
+.callScreen .captionBubble small{color:#65554d;font-size:12px;line-height:1.5;margin-bottom:5px}
+.callScreen .captionOriginal{font-size:clamp(17px,4.2vw,21px);line-height:1.5;color:#5d5650;overflow-wrap:anywhere}
+.callScreen .captionTranslation{font-size:clamp(19px,4.8vw,25px);line-height:1.5;font-weight:600;border-color:#d8d1ca;color:#211f1c;overflow-wrap:anywhere}
+.callScreen .captionOriginal[data-label]::before,.callScreen .captionTranslation[data-label]::before{content:attr(data-label);display:block;font-size:11px;line-height:1.5;font-weight:500;letter-spacing:.02em;color:#655f59;margin-bottom:4px}
+.callScreen .captionTranslation[data-state="pending"]{color:#796017;font-weight:400;font-size:16px}
+.callScreen .captionTranslation[data-state="error"]{color:#9d2836;font-weight:500;font-size:16px}
+.callScreen .translationOptions{position:relative;inset:auto;grid-row:3;z-index:3;gap:4px;align-items:stretch;text-align:left;font-size:12px;color:var(--ink);text-shadow:none;max-height:24dvh;overflow-y:auto;background:#fffaf2f2;border:1px solid #d8d1ca;border-radius:12px;padding:7px 10px}
+.callScreen .translationOptions span{padding:0;background:transparent;border-radius:0;line-height:1.5}
+.callScreen .translationOptions>span:first-child{color:var(--muted);font-size:11px}
+.callScreen .speechRetry{margin-top:5px;padding:8px 10px;min-height:44px;background:#fff;color:#743346;border:1px solid #98636f;border-radius:10px;font-size:13px;text-align:center}
+.callScreen .cameraExtras{position:relative;inset:auto;grid-row:4;z-index:3;justify-content:center;gap:9px;margin:0;padding:0;background:#fffaf2ed;border:1px solid #d8d1ca;border-radius:12px}
+.callScreen .cameraExtras label{color:var(--muted);font-size:12px}
+.callScreen .cameraExtras button,.callScreen .cameraExtras select{min-height:44px;background:transparent;color:var(--ink);border-color:transparent;font-size:12px;padding:8px;max-width:110px}
+.callScreen .callControls{position:relative;inset:auto;grid-row:5;z-index:3;gap:8px;justify-content:center;margin:0;padding:0}
+.callScreen .callControls button{width:56px;min-width:44px;min-height:56px;height:auto;border-radius:15px;padding:7px 3px;background:#fffaf2f5;border:1px solid #d8d1ca;color:var(--ink);font-size:19px}
+.callScreen .callControls small{font-size:10px;line-height:1.3;white-space:normal}
+.callScreen .callControls .hangup{margin-left:5px}
+.callScreen .callMessage{position:relative;inset:auto;grid-row:6;z-index:3;gap:8px;margin:0}
+.callScreen .callMessage input{min-width:0;background:#fffaf2f5;color:var(--ink);border:1px solid #d8d1ca}
+.callScreen .callMessage button{background:#765b68;color:#fff;border:1px solid #765b68;min-width:52px}
+.callScreen .photoPreview{background:#fffdf9f5;color:var(--ink)}
+.callScreen .photoButtons{flex-wrap:wrap}
+@media(max-width:359px){.callScreen{padding-left:8px;padding-right:8px;gap:6px}.callScreen .callControls{gap:5px}.callScreen .callControls button{width:50px}.callScreen .captionBubble{max-width:96%}#home .composer{flex-wrap:wrap}#home .composer input{width:auto;min-width:100px}}
+@media(max-height:550px) and (orientation:landscape){.callScreen{grid-template-columns:minmax(0,1fr) minmax(250px,1fr);grid-template-rows:auto minmax(0,1fr) auto auto auto;gap:6px}.callScreen .callTop{grid-column:1/-1}.callScreen .captionFeed,.callScreen:has(#audioBackdrop:not(.hidden)) .captionFeed{grid-column:1;grid-row:2/6;align-self:stretch;margin:0;max-height:none;min-height:0}.callScreen .translationOptions{grid-column:2;grid-row:2;max-height:none}.callScreen .cameraExtras{grid-column:2;grid-row:3}.callScreen .callControls{grid-column:2;grid-row:4}.callScreen .callMessage{grid-column:2;grid-row:5}.callScreen #local{top:80px;width:90px;height:80px}.callScreen:has(#audioBackdrop:not(.hidden)) .audioBackdrop{padding-top:90px}.callScreen .callControls button{min-height:44px;height:44px}.callScreen .callControls small{font-size:9px}.callScreen .callControls{gap:5px}.callScreen .captionOriginal{font-size:17px}.callScreen .captionTranslation{font-size:19px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
