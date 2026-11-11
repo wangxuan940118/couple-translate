@@ -190,3 +190,15 @@ body:has(.nestNav:not(.hidden)) .app{padding-bottom:95px}
 #nestLeave{color:#694b45!important;background:#fffaf3!important;border:1px solid #d7c5b6!important;font-weight:600!important;opacity:1!important}
 #home .chatlog[data-wallpaper]::before{background-position:center 38%!important;background-size:contain!important}
 @media(max-width:520px){.nestArtwork{max-width:340px;margin:10px auto}.nestArtwork img{max-height:310px}.nestPage{padding:16px 12px 22px}#home .chatlog[data-wallpaper]::before{background-position:center 35%!important}}
+
+/* Spacious two-way live captions: preserve the existing call appearance. */
+.callScreen .captionFeed{left:12px;right:12px;top:calc(105px + env(safe-area-inset-top));bottom:calc(235px + env(safe-area-inset-bottom));padding:16px;gap:14px;background:#111827dc}
+.callScreen .captionBubble{max-width:96%;padding:14px 16px}
+.callScreen .captionOriginal{font-size:clamp(18px,4.5vw,23px);line-height:1.5}
+.callScreen .captionTranslation{font-size:clamp(17px,4.1vw,21px);line-height:1.5}
+.callScreen .translationOptions{bottom:calc(198px + env(safe-area-inset-bottom))}
+.callScreen:has(#audioBackdrop:not(.hidden)) .captionFeed{top:calc(43% + env(safe-area-inset-top) * .25);bottom:calc(202px + env(safe-area-inset-bottom));background:#202124ed}
+.callScreen:has(#audioBackdrop:not(.hidden)) .audioBackdrop{justify-content:flex-start;padding-top:calc(105px + env(safe-area-inset-top))}
+.callScreen:has(#audioBackdrop:not(.hidden)) .audioBackdrop .avatar{width:108px;height:108px}
+.callScreen:has(#audioBackdrop:not(.hidden)) .audioBackdrop h2{margin:12px 0 4px}
+@media(max-height:720px){.callScreen .captionFeed{top:calc(82px + env(safe-area-inset-top));bottom:calc(217px + env(safe-area-inset-bottom))}.callScreen:has(#audioBackdrop:not(.hidden)) .captionFeed{top:calc(36% + env(safe-area-inset-top) * .2)}}
