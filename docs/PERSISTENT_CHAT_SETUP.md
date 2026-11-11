@@ -11,11 +11,11 @@
 
 ## 2. 建立並限制兩個帳號
 
-1. 到 **Authentication** 的登入方式設定，啟用 **Email／Password**。
+1. 到 **Authentication** 的登入方式設定，啟用 **Email OTP**。
 2. 關閉允許新使用者註冊的選項。網站也沒有公開註冊入口。
-3. 到 **Authentication → Users** 建立兩個帳號，使用兩人各自控制的 Email。以 Dashboard 管理者方式建立時確認 Email 已驗證；若採邀請，先完成 Email 驗證及設定密碼，再從網站登入。
+3. 到 **Authentication → Users** 建立兩個帳號，使用兩人各自控制的 Email。由管理者建立兩位帳號，確認各自 Email 已驗證；網站以 Email 收取 8 位數驗證碼登入，不需要共用密碼。
 4. 在 Users 清單取得兩個使用者的 **User UID／UUID**。設定允許名單使用 UUID，不使用姓名、愛心、Email 字串或房間碼。
-5. 各自保管自己的登入密碼。不要共用 Google 登入通行金鑰或要求兩支手機開藍牙；本功能是一般網路帳號登入。
+5. 在 Authentication → Email Templates 將 Magic Link 範本中的連結改為 `{{ .Token }}` 驗證碼，並將 OTP 長度設為 8 位。確認寄信額度與 SMTP 是否允許寄送給兩個不同 Email。網站不提供公開註冊；第二個帳號需先由管理者建立。
 
 ## 3. 設定伺服器環境
 
