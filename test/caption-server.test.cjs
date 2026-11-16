@@ -113,8 +113,67 @@ test('translation has a separate 120/min limit rather than failing after 30 call
 });
 
 test('provider timeout is bounded and leaves the socket connected',async t=>{
- const app=await fixture(t,{fetch:async(url,options)=>new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>reject(Error('cancelled')),{once:true}))});
- const a=await app.peer(),b=await app.peer();const before=Date.now();const r=await app.translate({text:'hello',from:'en',to:'zh-TW'});
- assert.equal(r.status,504);assert.equal((await r.json()).code,'TRANSLATION_TIMEOUT');assert.ok(Date.now()-before<13000);
+ const requests=[];
+ const app=await fixture(t,{fetch:async(url,options)=>{requests.push(options);return requests.length===1?new Promise(()=>{}):{ok:true,status:200,json:()=>new Promise(()=>{})}}});
+ const a=await app.peer(),b=await app.peer();const before=Date.now();
+ // A provider may ignore AbortSignal either before headers or while reading
+ // the body. Both paths still need a hard deadline independent of media.
+ const pending=[app.translate({text:'hello',from:'en',to:'zh-TW'}),app.translate({text:'你好',from:'zh-TW',to:'en'})];
+ a.send({type:'ice',candidate:{candidate:'while-provider-stalled'}});assert.equal((await b.wait(m=>m.type==='ice')).candidate.candidate,'while-provider-stalled');
+ for(const r of await Promise.all(pending)){assert.equal(r.status,504);assert.equal((await r.json()).code,'TRANSLATION_TIMEOUT')}
+ assert.ok(Date.now()-before<13000);assert.equal(requests.length,2);assert(requests.every(request=>request.signal.aborted));
  a.send({type:'speech-status',active:true});assert.equal((await b.wait(m=>m.type==='speech-status')).active,true);
+});
+
+test('structured speech status forwards only fixed states and reasons with the canonical sender device',async t=>{
+ const app=await fixture(t),a=await app.peer(),b=await app.peer(),callId=randomUUID();
+ const states=['starting','listening','restarting','off','error'];
+ for(const state of states){
+  a.send({type:'speech-status',active:state==='listening',state,callId,device:b.device,debug:'private diagnostic',apiKey:'private fixture'});
+  const received=await b.wait(message=>message.type==='speech-status'&&message.state===state);
+  assert.deepEqual(received,{type:'speech-status',active:state==='listening',state,callId,device:a.device});
+ }
+ for(const reason of ['unsupported','not-allowed','service-not-allowed','audio-capture','language-not-supported','network','startup-timeout','stalled','background','insecure']){
+  b.send({type:'speech-status',active:false,state:'error',reason,callId,device:a.device});
+  const received=await a.wait(message=>message.type==='speech-status'&&message.reason===reason);
+  assert.deepEqual(received,{type:'speech-status',active:false,state:'error',reason,callId,device:b.device});
+ }
+ assert.equal(b.messages.some(message=>message.type==='speech-status'&&message.reason),false,'status does not echo back to its sender');
+});
+
+test('invalid status diagnostics cannot inject arbitrary peer error text or break legacy status',async t=>{
+ const app=await fixture(t),a=await app.peer(),b=await app.peer();
+ for(const fields of [{state:'PRIVATE_ERROR_TEXT'},{reason:'PRIVATE_ERROR_TEXT'},{state:{name:'error'}},{reason:['network']},{state:null},{reason:null}])a.send({type:'speech-status',active:false,...fields});
+ a.send({type:'speech-status',active:true});
+ const legacy=await b.wait(message=>message.type==='speech-status');assert.deepEqual(legacy,{type:'speech-status',active:true,device:a.device});
+ assert.equal(b.messages.filter(message=>message.type==='speech-status').length,1);
+});
+
+test('continuous bidirectional caption bursts keep quiet-peer delivery and room isolation intact',async t=>{
+ const app=await fixture(t),a=await app.peer(),b=await app.peer(),outsider=await app.peer('OUTSIDER1'),callId=randomUUID(),id=randomUUID();
+ b.send({type:'caption-preview',callId,id,revision:1,text:'I am still speaking',lang:'en'});
+ for(let index=0;index<160;index++)a.send({type:'speech-caption',callId,id:randomUUID(),revision:1,text:'中文 '+index,lang:'zh-TW'});
+ b.send({type:'speech-caption',callId,id,revision:2,text:'I am still speaking and you can hear me',lang:'en'});
+ await b.wait(message=>message.type==='speech-caption'&&message.text==='中文 159');
+ await a.wait(message=>message.type==='speech-caption'&&message.id===id&&message.revision===2);
+ assert.equal(b.messages.filter(message=>message.type==='speech-caption'&&message.lang==='zh-TW').length,160);
+ assert.deepEqual(a.messages.filter(message=>message.id===id).map(message=>({type:message.type,text:message.text,revision:message.revision,device:message.device,lang:message.lang})),[
+  {type:'caption-preview',text:'I am still speaking',revision:1,device:b.device,lang:'en'},
+  {type:'speech-caption',text:'I am still speaking and you can hear me',revision:2,device:b.device,lang:'en'}
+ ]);
+ assert.equal(outsider.messages.some(message=>['speech-caption','caption-preview','speech-status'].includes(message.type)),false);
+});
+
+test('cancelling an obsolete HTTP translation aborts its provider request without ending WebSocket signaling',async t=>{
+ let providerStarted,providerSignal;
+ const started=new Promise(resolve=>{providerStarted=resolve});
+ const app=await fixture(t,{fetch:async(url,options)=>{providerSignal=options.signal;providerStarted();return new Promise(()=>{})}});
+ const a=await app.peer(),b=await app.peer(),controller=new AbortController();
+ const pending=fetch(app.origin+'/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:'outdated preview',from:'en',to:'zh-TW'}),signal:controller.signal});
+ await started;controller.abort();await assert.rejects(pending,error=>error.name==='AbortError');
+ for(let index=0;index<20&&!providerSignal.aborted;index++)await new Promise(resolve=>setTimeout(resolve,5));
+ assert.equal(providerSignal.aborted,true);
+ b.send({type:'speech-status',active:false,state:'restarting',reason:'network'});
+ assert.equal((await a.wait(message=>message.type==='speech-status')).state,'restarting');
+ a.send({type:'call-accept'});assert.equal((await b.wait(message=>message.type==='call-accept')).type,'call-accept');
 });
