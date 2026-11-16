@@ -87,7 +87,41 @@ test('translation outages keep originals and media independent; concurrency is b
 });
 test('late interim translation cannot overwrite finalized caption revision',async()=>{
  const pending=[];const f=fixture({fetch:(path,request)=>new Promise(resolve=>pending.push({resolve,request}))}),id=randomUUID();
- deliver(f,packet({id,text:'I miss',revision:1}),false);await f.advance(901);assert.equal(pending.length,1);deliver(f,packet({id,text:'I miss you',revision:2}),true);await flush();pending[0].resolve(Response.json({translation:'過期片段'}));await flush();assert.doesNotMatch(f.document.getElementById('callCaption').textContent,/過期片段/);assert.equal(pending.length,2);pending[1].resolve(Response.json({translation:'我想你了'}));await flush();assert.equal(f.document.querySelectorAll('.captionTheirs').length,1);assert.match(f.document.getElementById('callCaption').textContent,/我想你了/);
+ deliver(f,packet({id,text:'I miss',revision:1}),false);await f.advance(1401);assert.equal(pending.length,1);deliver(f,packet({id,text:'I miss you',revision:2}),true);await flush();pending[0].resolve(Response.json({translation:'過期片段'}));await flush();assert.doesNotMatch(f.document.getElementById('callCaption').textContent,/過期片段/);assert.equal(pending.length,2);pending[1].resolve(Response.json({translation:'我想你了'}));await flush();assert.equal(f.document.querySelectorAll('.captionTheirs').length,1);assert.match(f.document.getElementById('callCaption').textContent,/我想你了/);
+});
+test('growing interim speech displays instantly but only translates after a pause',async()=>{
+ const f=fixture(),id=randomUUID();
+ deliver(f,packet({id,text:'I',revision:1}),false);
+ await f.advance(500);
+ deliver(f,packet({id,text:'I had',revision:2}),false);
+ await f.advance(500);
+ deliver(f,packet({id,text:'I had a long day',revision:3}),false);
+ assert.match(f.document.getElementById('callCaption').textContent,/I had a long day/);
+ assert.equal(f.requests.length,0);
+ await f.advance(1399);assert.equal(f.requests.length,0);
+ await f.advance(1);assert.equal(f.requests.length,1);
+ assert.equal(JSON.parse(f.requests[0].request.body).text,'I had a long day');
+});
+test('completed captions overtake previews while translation is slow',async()=>{
+ const pending=[];
+ const f=fixture({fetch:(path,request)=>new Promise((resolve,reject)=>{
+   pending.push({resolve,reject,request});
+   request.signal.addEventListener('abort',()=>reject(Object.assign(Error('abort'),{name:'AbortError'})),{once:true});
+ })});
+ const previewId=randomUUID(),queuedPreviewId=randomUUID();
+ deliver(f,packet({id:previewId,text:'Preview 1',revision:1}),false);
+ deliver(f,packet({id:queuedPreviewId,text:'Preview 2',revision:1}),false);
+ await f.advance(1401);
+ assert.equal(f.requests.length,1); // One preview slot is reserved for final speech.
+ deliver(f,packet({text:'Completed first'}));await flush();
+ assert.equal(f.requests.length,2);
+ assert.equal(JSON.parse(f.requests[1].request.body).text,'Completed first');
+ deliver(f,packet({id:previewId,text:'Completed second',revision:2}),true);await flush();
+ assert.equal(pending[0].request.signal.aborted,true);
+ assert.equal(f.requests.length,3);
+ assert.equal(JSON.parse(f.requests[2].request.body).text,'Completed second');
+ assert.match(f.document.getElementById('callCaption').textContent,/Completed second/);
+ f.run('endCall(false)');await flush();
 });
 test('two isolated real client contexts exchange recognized Chinese and English into correct viewer translations',async()=>{
  const a=fixture(),b=fixture({lang:'en'});for(const f of[a,b]){f.run('startSpeechCaptions()');f.instances[0].onstart()}
@@ -107,4 +141,80 @@ test('recognition constructor failures are recoverable and repeated rapid ending
 });
 test('a silent Safari hang restarts even when abort never emits onend; background pause keeps call audio alive',async()=>{
  const f=fixture();f.run('startSpeechCaptions()');f.instances[0].onstart();await f.advance(70351);assert.equal(f.instances.length,2);assert.equal(f.instances[0].aborted,1);f.document.hidden=true;f.run("speechFailure('background')");assert.equal(f.run('speechWanted'),false);assert.equal(f.audio.readyState,'live');assert.match(f.document.getElementById('speechStatus').textContent,/背景/);
+});
+
+
+test('ICE-only connected Safari starts captions once through actual ICE and connection handlers',async()=>{
+ const f=fixture();
+ class Peer{
+  constructor(){this.connectionState=undefined;this.iceConnectionState='new'}
+  addTrack(){return {getParameters:()=>({encodings:[]})}}
+  close(){this.iceConnectionState='closed'}
+ }
+ f.context.RTCPeerConnection=Peer;
+ assert.equal(await f.run("setupCall('audio')"),true);assert.equal(f.instances.length,0);
+ f.run("pc.iceConnectionState='connected';pc.oniceconnectionstatechange();pc.onconnectionstatechange();autoStartCallCaptions()");
+ assert.equal(f.instances.length,1);f.instances[0].onstart();assert.equal(f.run('speechWanted'),true);
+ f.run("pc.iceConnectionState='completed';pc.oniceconnectionstatechange()");assert.equal(f.instances.length,1);
+ f.run('endCall(false)');
+});
+
+test('network errors restart a fresh recognizer even when Safari omits onend',async()=>{
+ const f=fixture({lang:'en'});f.run('startSpeechCaptions()');const first=f.instances[0];first.onstart();const oldEnd=first.onend;
+ first.onerror({error:'network'});assert.equal(first.aborted,1);assert.equal(first.onend,null);assert.equal(f.audio.readyState,'live');
+ assert(f.sent.some(packet=>packet.type==='speech-status'&&packet.state==='restarting'&&packet.reason==='network'));
+ oldEnd();await f.advance(701);assert.equal(f.instances.length,2);f.instances[1].onstart();f.result(f.instances[1],'English resumed');
+ assert.equal(f.sent.filter(packet=>packet.type==='speech-caption').at(-1).text,'English resumed');
+ assert.equal(f.run('speechWanted'),true);
+});
+
+test('canceling an obsolete preview releases its slot when fetch ignores abort',async()=>{
+ const pending=[],f=fixture({fetch:(path,request)=>new Promise(resolve=>pending.push({resolve,request}))}),id=randomUUID();
+ deliver(f,packet({id,text:'I was',revision:1}),false);await f.advance(1401);assert.equal(pending.length,1);
+ deliver(f,packet({id,text:'I was tired',revision:2}),true);await flush();
+ assert.equal(pending[0].request.signal.aborted,true);assert.equal(pending.length,2,'final starts without waiting for the old network promise');
+ pending[1].resolve(Response.json({translation:'我累了'}));await flush();
+ pending[0].resolve(Response.json({translation:'過時片段'}));await flush();
+ assert.equal(f.run('captionTranslationRunning'),0);assert.match(f.document.getElementById('callCaption').textContent,/我累了/);assert.doesNotMatch(f.document.getElementById('callCaption').textContent,/過時片段/);
+});
+
+test('translation deadline releases all slots when fetch never settles and keeps microphone alive',async()=>{
+ const f=fixture({fetch:()=>new Promise(()=>{})});deliver(f,packet({text:'Never settles one'}));deliver(f,packet({text:'Never settles two'}));
+ assert.equal(f.run('captionTranslationRunning'),2);await f.advance(8001);
+ assert.equal(f.run('captionTranslationRunning'),0);assert.equal(f.run('captionActiveRequests.size'),0);assert.equal(f.audio.readyState,'live');assert.equal(f.run('pc.connectionState'),'connected');
+ assert.match(f.document.getElementById('callCaption').textContent,/翻譯逾時/);
+ deliver(f,packet({text:'Fresh request after timeout'}));await flush();assert.equal(f.requests.length,3,'new captions are not blocked forever');
+ f.run('endCall(false)');await flush();assert.equal(f.run('captionTranslationRunning'),0);
+});
+
+test('speech flood has bounded queue and prioritizes fresh finals over expired backlog',async()=>{
+ const pending=[],f=fixture({fetch:(path,request)=>new Promise(resolve=>pending.push({resolve,request}))});
+ for(let i=0;i<12;i++)deliver(f,packet({text:'Older sentence '+i}));await flush();
+ assert.equal(f.requests.length,2);assert(f.run('captionTranslationQueue.size')<=4);
+ await f.advance(5100);deliver(f,packet({text:'Newest complete sentence'}));
+ pending[0].resolve(Response.json({translation:'第一句翻譯'}));await flush();
+ assert.equal(f.requests.length,3);assert.equal(JSON.parse(f.requests[2].request.body).text,'Newest complete sentence');
+ assert.equal(f.run('captionTranslationQueue.size'),0,'expired waiting jobs cannot extend future latency');
+ assert.match(f.document.getElementById('callCaption').textContent,/Older sentence 0/);assert.match(f.document.getElementById('callCaption').textContent,/第一句翻譯/);
+ const latest=[...f.document.querySelectorAll('.captionTheirs')].at(-1);assert.equal(latest.querySelector('.captionOriginal').textContent,'Newest complete sentence');assert.doesNotMatch(latest.querySelector('.captionTranslation').textContent,/第一句翻譯/);
+ f.run('endCall(false)');await flush();
+});
+
+test('quiet long calls keep restarting instead of disabling captions after three silent watchdog cycles',async()=>{
+ const f=fixture({lang:'en'});f.run('startSpeechCaptions()');
+ for(let i=0;i<8;i++){f.instances.at(-1).onstart();await f.advance(70351);assert.equal(f.run('speechWanted'),true);assert.equal(f.audio.readyState,'live')}
+ assert.equal(f.instances.length,9);f.instances.at(-1).onstart();f.result(f.instances.at(-1),'Still listening after a long quiet call');
+ assert.equal(f.sent.filter(packet=>packet.type==='speech-caption').at(-1).text,'Still listening after a long quiet call');
+ assert.equal(f.run('recognition===null'),false);
+});
+
+test('recognized speech with a disconnected signaling socket shows not-sent instead of a false success',()=>{
+ const f=fixture({lang:'en'});f.run('startSpeechCaptions()');f.instances[0].onstart();f.run('socket.readyState=3');f.result(f.instances[0],'Can you hear me?');
+ assert.equal(f.sent.filter(packet=>packet.type==='speech-caption').length,0);assert.match(f.document.getElementById('speechStatus').textContent,/captions were not sent/);assert(!f.document.getElementById('speechRetry').classList.contains('hidden'));assert.equal(f.audio.readyState,'live');
+});
+
+test('partner permission reason remains separate from the local recognizer state',async()=>{
+ const f=fixture();f.run('startSpeechCaptions()');f.instances[0].onstart();const local=f.document.getElementById('speechStatus').textContent;
+ f.context.message={type:'speech-status',active:false,state:'error',reason:'not-allowed',callId:CALL,device:'partner'};await f.run('handle(message)');
+ assert.match(f.document.getElementById('speechPeerStatus').textContent,/對方尚未允許/);assert.equal(f.document.getElementById('speechStatus').textContent,local);assert.equal(f.run('speechWanted'),true);
 });
