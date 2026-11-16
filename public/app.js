@@ -199,6 +199,16 @@ function queueCaptionTranslation(id,text,sourceLang,final=true){
   if(!calling||!captionNodes.has(id)||sourceLang===lang)return;
   const job={id,text,sourceLang,target:lang,epoch:callCaptionEpoch,version:Symbol(),final};
   captionNodes.get(id).captionVersion=job.version;captionTranslationQueue.set(id,job);
+  if(final){
+    // Completed sentences must not wait behind a slow, now-obsolete preview.
+    // The original words are already visible while the new request starts.
+    const activeForId=captionActiveRequests.get(id);
+    if(activeForId?.captionPreview)activeForId.abort();
+    if(captionTranslationRunning>=2){
+      const oldPreview=[...captionActiveRequests.values()].find(controller=>controller.captionPreview&&!controller.signal.aborted);
+      oldPreview?.abort();
+    }
+  }
   // Keep the queue bounded during provider outages. Older originals remain visible.
   if(captionTranslationQueue.size>18){const oldest=captionTranslationQueue.keys().next().value,skipped=captionTranslationQueue.get(oldest);captionTranslationQueue.delete(oldest);if(captionNodes.has(oldest))captionBubble(oldest,'對方',skipped.text,lang==='en'?'Translation delayed · original kept':'翻譯延遲，原文已保留','error')}
   pumpCaptionTranslations();
@@ -206,10 +216,14 @@ function queueCaptionTranslation(id,text,sourceLang,final=true){
 function pumpCaptionTranslations(){
   while(captionTranslationRunning<2){
     const available=[...captionTranslationQueue.values()].filter(job=>!captionActiveRequests.has(job.id));
-    const job=available.find(item=>item.final)||available[0];if(!job)return;
+    // Reserve one of the two translation slots for completed speech. Interim
+    // captions still show the original immediately and use at most one slot.
+    const completed=available.find(item=>item.final);
+    const previewBusy=[...captionActiveRequests.values()].some(controller=>controller.captionPreview);
+    const job=completed||(!previewBusy&&available.find(item=>!item.final));if(!job)return;
     captionTranslationQueue.delete(job.id);
     if(!calling||job.epoch!==callCaptionEpoch||!captionNodes.has(job.id))continue;
-    const controller=new AbortController();captionActiveRequests.set(job.id,controller);captionTranslationRunning++;
+    const controller=new AbortController();controller.captionPreview=!job.final;captionActiveRequests.set(job.id,controller);captionTranslationRunning++;
     const current=()=>calling&&job.epoch===callCaptionEpoch&&job.target===lang&&captionNodes.get(job.id)?.captionVersion===job.version;
     translate(job.text,job.sourceLang,job.target,{signal:controller.signal,timeoutMs:8000}).then(translated=>{
       if(current())captionBubble(job.id,'對方',job.text,translated,'success');
@@ -238,7 +252,9 @@ function updateSpeechPreview(side,text,sourceLang,id=side+'-preview'){
   bubble.captionVersion=Symbol();captionTranslationQueue.delete(id);
   if(!needsTranslation)return;
   const epoch=callCaptionEpoch,version=++previewVersion[side];
-  setTimeout(()=>{if(calling&&epoch===callCaptionEpoch&&version===previewVersion[side]&&captionNodes.has(id))queueCaptionTranslation(id,text,sourceLang,false)},900);
+  // Wait until speech pauses before translating an unfinished sentence.
+  // This avoids sending nearly identical versions of long utterances.
+  setTimeout(()=>{if(calling&&epoch===callCaptionEpoch&&version===previewVersion[side]&&captionNodes.has(id))queueCaptionTranslation(id,text,sourceLang,false)},1400);
 }
 function validSpeechPacket(message){
   return calling&&typeof message.text==='string'&&languages.includes(message.lang)&&message.device!==deviceId&&
