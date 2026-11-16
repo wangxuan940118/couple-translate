@@ -87,7 +87,41 @@ test('translation outages keep originals and media independent; concurrency is b
 });
 test('late interim translation cannot overwrite finalized caption revision',async()=>{
  const pending=[];const f=fixture({fetch:(path,request)=>new Promise(resolve=>pending.push({resolve,request}))}),id=randomUUID();
- deliver(f,packet({id,text:'I miss',revision:1}),false);await f.advance(901);assert.equal(pending.length,1);deliver(f,packet({id,text:'I miss you',revision:2}),true);await flush();pending[0].resolve(Response.json({translation:'過期片段'}));await flush();assert.doesNotMatch(f.document.getElementById('callCaption').textContent,/過期片段/);assert.equal(pending.length,2);pending[1].resolve(Response.json({translation:'我想你了'}));await flush();assert.equal(f.document.querySelectorAll('.captionTheirs').length,1);assert.match(f.document.getElementById('callCaption').textContent,/我想你了/);
+ deliver(f,packet({id,text:'I miss',revision:1}),false);await f.advance(1401);assert.equal(pending.length,1);deliver(f,packet({id,text:'I miss you',revision:2}),true);await flush();pending[0].resolve(Response.json({translation:'過期片段'}));await flush();assert.doesNotMatch(f.document.getElementById('callCaption').textContent,/過期片段/);assert.equal(pending.length,2);pending[1].resolve(Response.json({translation:'我想你了'}));await flush();assert.equal(f.document.querySelectorAll('.captionTheirs').length,1);assert.match(f.document.getElementById('callCaption').textContent,/我想你了/);
+});
+test('growing interim speech displays instantly but only translates after a pause',async()=>{
+ const f=fixture(),id=randomUUID();
+ deliver(f,packet({id,text:'I',revision:1}),false);
+ await f.advance(500);
+ deliver(f,packet({id,text:'I had',revision:2}),false);
+ await f.advance(500);
+ deliver(f,packet({id,text:'I had a long day',revision:3}),false);
+ assert.match(f.document.getElementById('callCaption').textContent,/I had a long day/);
+ assert.equal(f.requests.length,0);
+ await f.advance(1399);assert.equal(f.requests.length,0);
+ await f.advance(1);assert.equal(f.requests.length,1);
+ assert.equal(JSON.parse(f.requests[0].request.body).text,'I had a long day');
+});
+test('completed captions overtake previews while translation is slow',async()=>{
+ const pending=[];
+ const f=fixture({fetch:(path,request)=>new Promise((resolve,reject)=>{
+   pending.push({resolve,reject,request});
+   request.signal.addEventListener('abort',()=>reject(Object.assign(Error('abort'),{name:'AbortError'})),{once:true});
+ })});
+ const previewId=randomUUID(),queuedPreviewId=randomUUID();
+ deliver(f,packet({id:previewId,text:'Preview 1',revision:1}),false);
+ deliver(f,packet({id:queuedPreviewId,text:'Preview 2',revision:1}),false);
+ await f.advance(1401);
+ assert.equal(f.requests.length,1); // One preview slot is reserved for final speech.
+ deliver(f,packet({text:'Completed first'}));await flush();
+ assert.equal(f.requests.length,2);
+ assert.equal(JSON.parse(f.requests[1].request.body).text,'Completed first');
+ deliver(f,packet({id:previewId,text:'Completed second',revision:2}),true);await flush();
+ assert.equal(pending[0].request.signal.aborted,true);
+ assert.equal(f.requests.length,3);
+ assert.equal(JSON.parse(f.requests[2].request.body).text,'Completed second');
+ assert.match(f.document.getElementById('callCaption').textContent,/Completed second/);
+ f.run('endCall(false)');await flush();
 });
 test('two isolated real client contexts exchange recognized Chinese and English into correct viewer translations',async()=>{
  const a=fixture(),b=fixture({lang:'en'});for(const f of[a,b]){f.run('startSpeechCaptions()');f.instances[0].onstart()}
